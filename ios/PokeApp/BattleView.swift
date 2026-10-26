@@ -50,6 +50,19 @@ struct BattleView: View {
     @State private var message = ""
     @State private var isSendingMove = false
     @State private var showLeaveConfirmation = false
+    @State private var hasReceivedBattle = false
+    @State private var lastTurnFingerprint = ""
+    @State private var displayedOwnHP: Int?
+    @State private var displayedOpponentHP: Int?
+    @State private var queuedCues: [BattleTurnCue] = []
+    @State private var isAnimatingTurn = false
+    @State private var animatedDialogue: String?
+    @State private var dialogueGeneration = 0
+    @State private var ownAttackOffset: CGFloat = 0
+    @State private var opponentAttackOffset: CGFloat = 0
+    @State private var ownImpact = false
+    @State private var opponentImpact = false
+    @State private var effect: BattleEffect?
 
     private let pollingTimer = Timer.publish(every: 2.0, on: .main, in: .common).autoconnect()
 
@@ -144,13 +157,13 @@ struct BattleView: View {
         ZStack {
             VStack {
                 HStack {
-                    PokemonHPBox(label: "RIVAL", pokemon: opponentPokemon)
+                    PokemonHPBox(label: "RIVAL", pokemon: opponentPokemon, displayedHP: displayedOpponentHP)
                     Spacer(minLength: 74)
                 }
                 Spacer()
                 HStack {
                     Spacer(minLength: 74)
-                    PokemonHPBox(label: "TU POKÉMON", pokemon: ownPokemon)
+                    PokemonHPBox(label: "TU POKÉMON", pokemon: ownPokemon, displayedHP: displayedOwnHP)
                 }
             }
             .padding(.vertical, 20)
@@ -160,6 +173,8 @@ struct BattleView: View {
                     Spacer()
                     PokemonSprite(pokemon: opponentPokemon, isOpponent: true)
                         .frame(width: 128, height: 128)
+                        .offset(x: opponentAttackOffset + (opponentImpact ? 8 : 0))
+                        .opacity(opponentImpact ? 0.35 : 1)
                         .padding(.trailing, 13)
                         .padding(.top, 43)
                 }
@@ -167,16 +182,24 @@ struct BattleView: View {
                 HStack {
                     PokemonSprite(pokemon: ownPokemon, isOpponent: false)
                         .frame(width: 154, height: 154)
+                        .offset(x: ownAttackOffset + (ownImpact ? -8 : 0))
+                        .opacity(ownImpact ? 0.35 : 1)
                         .padding(.leading, 6)
                     Spacer()
                 }
+            }
+            if let effect {
+                BattleMoveEffect(type: effect.type)
+                    .offset(x: effect.fromOwn ? (effect.progress * 150 - 75) : (75 - effect.progress * 150), y: effect.fromOwn ? 42 : -42)
+                    .transition(.scale.combined(with: .opacity))
+                    .allowsHitTesting(false)
             }
         }
     }
 
     private func battleControls(battle: BattleState, pokemon: BattlePokemon) -> some View {
         VStack(spacing: 10) {
-            DSDialogueBox(text: dialogue(for: battle), speaker: battle.status == "waiting_moves" ? "ENTRENADOR" : nil)
+            DSDialogueBox(text: animatedDialogue ?? dialogue(for: battle), speaker: battle.status == "waiting_moves" ? "ENTRENADOR" : nil)
                 .frame(minHeight: 78)
 
             if battle.status == "waiting_moves" {
@@ -234,10 +257,110 @@ struct BattleView: View {
                     return
                 }
 
-                battle = decoded
+                receiveBattle(decoded)
                 message = ""
             }
         }.resume()
+    }
+
+    private func receiveBattle(_ decoded: BattleState) {
+        let own = config.playerSlot == 2 ? decoded.currentPokemon.player2 : decoded.currentPokemon.player1
+        let opponent = config.playerSlot == 2 ? decoded.currentPokemon.player1 : decoded.currentPokemon.player2
+        let fingerprint = turnFingerprint(for: decoded, ownHP: own.hp, opponentHP: opponent.hp)
+
+        guard hasReceivedBattle else {
+            hasReceivedBattle = true
+            lastTurnFingerprint = fingerprint
+            displayedOwnHP = own.hp
+            displayedOpponentHP = opponent.hp
+            battle = decoded
+            return
+        }
+
+        let isNewTurn = fingerprint != lastTurnFingerprint
+        battle = decoded
+        if isNewTurn {
+            lastTurnFingerprint = fingerprint
+            enqueueCues(for: decoded, own: own, opponent: opponent)
+        } else if !isAnimatingTurn && queuedCues.isEmpty {
+            displayedOwnHP = own.hp
+            displayedOpponentHP = opponent.hp
+        }
+    }
+
+    private func turnFingerprint(for battle: BattleState, ownHP: Int, opponentHP: Int) -> String {
+        let turn = battle.lastTurn
+        return "\(turn?.player1Move ?? "")|\(turn?.player2Move ?? "")|\(turn?.damageToPlayer1 ?? 0)|\(turn?.damageToPlayer2 ?? 0)|\(turn?.logs.joined(separator: "~") ?? "")|\(ownHP)|\(opponentHP)"
+    }
+
+    private func enqueueCues(for battle: BattleState, own: BattlePokemon, opponent: BattlePokemon) {
+        guard let turn = battle.lastTurn else {
+            displayedOwnHP = own.hp
+            displayedOpponentHP = opponent.hp
+            return
+        }
+        let ownIsPlayer1 = config.playerSlot != 2
+        let ownMove = ownIsPlayer1 ? turn.player1Move : turn.player2Move
+        let opponentMove = ownIsPlayer1 ? turn.player2Move : turn.player1Move
+        let damageToOpponent = ownIsPlayer1 ? turn.damageToPlayer2 : turn.damageToPlayer1
+        let damageToOwn = ownIsPlayer1 ? turn.damageToPlayer1 : turn.damageToPlayer2
+        if !ownMove.isEmpty { queuedCues.append(BattleTurnCue(attackerIsOwn: true, move: ownMove, type: moveType(named: ownMove, in: own.moves), damagesTarget: damageToOpponent > 0)) }
+        if !opponentMove.isEmpty { queuedCues.append(BattleTurnCue(attackerIsOwn: false, move: opponentMove, type: moveType(named: opponentMove, in: opponent.moves), damagesTarget: damageToOwn > 0)) }
+        if queuedCues.isEmpty {
+            displayedOwnHP = own.hp
+            displayedOpponentHP = opponent.hp
+        } else {
+            playNextCue()
+        }
+    }
+
+    private func moveType(named name: String, in moves: [Move]) -> String {
+        moves.first { $0.name.caseInsensitiveCompare(name) == .orderedSame }?.type ?? "normal"
+    }
+
+    private func playNextCue() {
+        guard !isAnimatingTurn, !queuedCues.isEmpty else { return }
+        let cue = queuedCues.removeFirst()
+        isAnimatingTurn = true
+        let attacker = cue.attackerIsOwn ? (ownPokemon?.name ?? "Tu Pokémon") : (opponentPokemon?.name ?? "El rival")
+        typewrite("\(attacker) usó \(cue.move.uppercased())!")
+        withAnimation(.easeOut(duration: 0.22)) {
+            if cue.attackerIsOwn { ownAttackOffset = 24 } else { opponentAttackOffset = -24 }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
+            withAnimation(.easeIn(duration: 0.16)) { self.effect = BattleEffect(type: cue.type, fromOwn: cue.attackerIsOwn, progress: 1) }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.46) {
+            guard cue.damagesTarget else { return }
+            withAnimation(.linear(duration: 0.09).repeatCount(4, autoreverses: true)) {
+                if cue.attackerIsOwn { self.opponentImpact = true } else { self.ownImpact = true }
+            }
+            withAnimation(.easeOut(duration: 0.65)) {
+                if cue.attackerIsOwn { self.displayedOpponentHP = self.opponentPokemon?.hp } else { self.displayedOwnHP = self.ownPokemon?.hp }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.82) {
+            withAnimation(.easeOut(duration: 0.18)) {
+                self.ownAttackOffset = 0; self.opponentAttackOffset = 0; self.ownImpact = false; self.opponentImpact = false; self.effect = nil
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.08) {
+            self.isAnimatingTurn = false
+            if self.queuedCues.isEmpty { self.animatedDialogue = nil }
+            self.playNextCue()
+        }
+    }
+
+    private func typewrite(_ text: String) {
+        dialogueGeneration += 1
+        let generation = dialogueGeneration
+        animatedDialogue = ""
+        for (index, character) in text.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.022) {
+                guard generation == self.dialogueGeneration else { return }
+                self.animatedDialogue?.append(character)
+            }
+        }
     }
 
     private func sendMove(moveId: Int) {
@@ -279,10 +402,13 @@ struct BattleView: View {
 private struct PokemonHPBox: View {
     let label: String
     let pokemon: BattlePokemon
+    let displayedHP: Int?
+
+    private var currentHP: Int { displayedHP ?? pokemon.hp }
 
     private var health: Double {
         guard pokemon.maxHp > 0 else { return 0 }
-        return Double(pokemon.hp) / Double(pokemon.maxHp)
+        return Double(currentHP) / Double(pokemon.maxHp)
     }
 
     var body: some View {
@@ -305,7 +431,7 @@ private struct PokemonHPBox: View {
                 }
                 .frame(height: 8)
             }
-            Text("\(pokemon.hp) / \(pokemon.maxHp)")
+            Text("\(currentHP) / \(pokemon.maxHp)")
                 .font(DSFont.body(11))
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -315,6 +441,42 @@ private struct PokemonHPBox: View {
         .frame(width: 174)
         .background(DSColor.paper.opacity(0.94), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(DSColor.ink, lineWidth: 3))
+    }
+}
+
+private struct BattleTurnCue {
+    let attackerIsOwn: Bool
+    let move: String
+    let type: String
+    let damagesTarget: Bool
+}
+
+private struct BattleEffect: Equatable {
+    let type: String
+    let fromOwn: Bool
+    let progress: CGFloat
+}
+
+private struct BattleMoveEffect: View {
+    let type: String
+
+    private var color: Color { DSColor.type(type) }
+    private var icon: String {
+        switch type.lowercased() {
+        case "fire": return "flame.fill"
+        case "water", "ice": return "drop.fill"
+        case "electric": return "bolt.fill"
+        case "grass", "bug": return "leaf.fill"
+        case "psychic", "fairy", "ghost": return "sparkles"
+        default: return "burst.fill"
+        }
+    }
+
+    var body: some View {
+        Image(systemName: icon)
+            .font(.system(size: 38, weight: .black))
+            .foregroundStyle(color)
+            .shadow(color: color.opacity(0.6), radius: 8)
     }
 }
 
