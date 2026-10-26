@@ -366,7 +366,7 @@ struct TypeBadge: View {
                 .font(font)
                 .foregroundColor(.white)
                 .lineLimit(1)
-                .fixedSize()
+                .minimumScaleFactor(0.6)
         }
         .padding(.leading, 2)
         .padding(.trailing, 6)

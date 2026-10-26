@@ -25,26 +25,29 @@ struct CardHand: View {
         GeometryReader { geo in
             let cardHeight = min((geo.size.height - hintHeight - cardGap * 2) / 2, maxCardHeight)
             VStack(spacing: cardGap) {
-                ZStack {
+                // Hint and forfeit button share one row, so the button can never be pushed off screen.
+                HStack(spacing: 8) {
                     Text(canMove ? "▼ Elige un ataque ▼" : vm.waitingForOpponent ? "Esperando al rival…" : "")
                         .font(PixelFont.titleSmall)
                         .foregroundColor(Ds.yellow)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .frame(maxWidth: .infinity)
                     if director.mine != nil && vm.battle?.winner == nil {
-                        HStack {
-                            Spacer()
-                            Button {
-                                Sound.shared.play(.select)
-                                onForfeit()
-                            } label: {
-                                Text("RENDIRSE")
-                                    .font(PixelFont.labelMedium)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(RoundedRectangle(cornerRadius: 6).fill(Ds.redDark))
-                                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.white.opacity(0.4), lineWidth: 1.5))
-                            }
+                        Button {
+                            Sound.shared.play(.select)
+                            onForfeit()
+                        } label: {
+                            Text("RENDIRSE")
+                                .font(PixelFont.labelMedium)
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(RoundedRectangle(cornerRadius: 6).fill(Ds.redDark))
+                                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.white.opacity(0.4), lineWidth: 1.5))
                         }
+                        .fixedSize()
                     }
                 }
                 .frame(height: hintHeight)
@@ -53,12 +56,13 @@ struct CardHand: View {
                     HStack(spacing: cardGap) {
                         ForEach(0..<2, id: \.self) { col in
                             cell(index: row * 2 + col, moves: moves)
+                                // Each card gets exactly half the row, whatever its text needs.
+                                .frame(width: max((geo.size.width - cardGap) / 2, 0), height: max(cardHeight, 0))
                         }
                     }
-                    .frame(height: max(cardHeight, 0))
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(width: geo.size.width, height: geo.size.height)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -76,7 +80,7 @@ struct CardHand: View {
                 vm.sendMove(m.id)
             }
         } else {
-            Color.clear.frame(maxWidth: .infinity)
+            Color.clear
         }
     }
 }
@@ -102,7 +106,9 @@ private struct MoveCard: View {
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
                 RemoteImage(url: Sprites.typeIcon(move.type))
-                    .frame(width: 38, height: 38)
+                    // Up to 38 pt, smaller when the card is short.
+                    .frame(maxWidth: 38, maxHeight: 38)
+                    .aspectRatio(1, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.white, lineWidth: 2))
                 Spacer(minLength: 0)
@@ -116,8 +122,11 @@ private struct MoveCard: View {
                 Text("POTENCIA")
                     .font(PixelFont.body(9))
                     .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                 Spacer(minLength: 0)
             }
+            .padding(.vertical, 2)
             .frame(width: 58)
             .frame(maxHeight: .infinity)
 
@@ -127,7 +136,7 @@ private struct MoveCard: View {
                     .font(PixelFont.titleMedium.bold())
                     .foregroundColor(Ds.ink)
                     .lineLimit(2)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.6)
                 Spacer(minLength: 2)
                 TypeBadge(type: move.type ?? "normal")
                 Spacer(minLength: 2)
@@ -145,11 +154,12 @@ private struct MoveCard: View {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(LinearGradient(colors: [.white, Color(hex: 0xF4F0E4), style.color.opacity(0.25)], startPoint: .top, endPoint: .bottom))
             )
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .padding(5)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(RoundedRectangle(cornerRadius: 14).fill(LinearGradient(colors: [style.color, style.dark], startPoint: .top, endPoint: .bottom)))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.white.opacity(0.35), lineWidth: 2))
-        .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .onTapGesture {
             guard raised && !played else { return }
@@ -175,7 +185,7 @@ private struct ClassChip: View {
             .font(PixelFont.labelSmall)
             .foregroundColor(.white)
             .lineLimit(1)
-            .fixedSize()
+            .minimumScaleFactor(0.6)
             .padding(.horizontal, 5)
             .padding(.vertical, 1)
             .background(RoundedRectangle(cornerRadius: 6).fill(color))
@@ -191,6 +201,8 @@ private struct AccuracyBar: View {
             Text("PREC.")
                 .font(PixelFont.labelSmall)
                 .foregroundColor(Ds.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Ds.ink.opacity(0.15)
@@ -202,7 +214,8 @@ private struct AccuracyBar: View {
             Text("\(accuracy)%")
                 .font(PixelFont.labelMedium)
                 .foregroundColor(Ds.ink)
-                .fixedSize()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
         }
     }
 }
@@ -217,7 +230,7 @@ private struct EffectivenessChip: View {
                 .font(PixelFont.labelSmall)
                 .foregroundColor(.white)
                 .lineLimit(1)
-                .fixedSize()
+                .minimumScaleFactor(0.6)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 1)
                 .background(RoundedRectangle(cornerRadius: 6).fill(eff > 1 ? Ds.green : Ds.inkSoft))
