@@ -82,13 +82,23 @@ struct WaitingRoomView: View {
     }
 
     private var roomHeader: some View {
-        VStack(spacing: 6) {
-            Text("SALA PREPARADA")
-                .font(DSFont.title(18))
-                .foregroundStyle(DSColor.ink)
-            Text(status?.status == "battle" ? "¡COMIENZA EL COMBATE!" : "ESPERANDO ENTRENADORES")
-                .font(DSFont.body(13, weight: .bold))
-                .foregroundStyle(DSColor.red)
+        DSPanel {
+            HStack(spacing: 12) {
+                Image(systemName: roomStatusIcon)
+                    .font(.system(size: 25, weight: .black))
+                    .foregroundStyle(roomStatusColor)
+                    .frame(width: 36, height: 36)
+                    .background(roomStatusColor.opacity(0.14), in: Circle())
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("SALA DE ENLACE")
+                        .font(DSFont.title(14))
+                        .foregroundStyle(DSColor.ink)
+                    Text(roomStatusLabel)
+                        .font(DSFont.body(13, weight: .bold))
+                        .foregroundStyle(roomStatusColor)
+                }
+                Spacer(minLength: 0)
+            }
         }
     }
 
@@ -122,7 +132,8 @@ struct WaitingRoomView: View {
     }
 
     private var trainerLineup: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        DSPanel {
+            VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("ENTRENADORES")
                     .font(DSFont.title(12))
@@ -135,6 +146,7 @@ struct WaitingRoomView: View {
 
             TrainerWaitingCard(player: currentPlayer, isCurrentPlayer: true)
             TrainerWaitingCard(player: rivalPlayer, isCurrentPlayer: false)
+            }
         }
     }
 
@@ -160,11 +172,30 @@ struct WaitingRoomView: View {
             } else if status.players.count < 2 {
                 DSDialogueBox(text: "Esperando a que un rival se una a la sala...", speaker: "SISTEMA")
             } else if currentPlayer?.hasTeam == true {
-                DSDialogueBox(text: "Equipo listo. Espera a que ambos entrenadores se preparen.", speaker: "SISTEMA")
+                DSDialogueBox(text: currentPlayer?.ready == true ? "Tu equipo está listo. Espera a que tu rival se prepare." : "Equipo enviado. Preparando tu estado para luchar...", speaker: "SISTEMA")
             }
         } else {
             DSDialogueBox(text: "Conectando con la sala...", speaker: "SISTEMA")
         }
+    }
+
+    private var roomStatusLabel: String {
+        guard let status else { return "CONECTANDO CON LA SALA" }
+        if status.status == "battle" { return "¡COMIENZA EL COMBATE!" }
+        if status.players.count < 2 { return "ESPERANDO A TU RIVAL" }
+        return currentPlayer?.ready == true ? "LISTO PARA LUCHAR" : "AMBOS ENTRENADORES CONECTADOS"
+    }
+
+    private var roomStatusColor: Color {
+        guard let status else { return DSColor.blue }
+        if status.status == "battle" || currentPlayer?.ready == true { return DSColor.grassDark }
+        return status.players.count < 2 ? DSColor.red : DSColor.blue
+    }
+
+    private var roomStatusIcon: String {
+        guard let status else { return "arrow.triangle.2.circlepath" }
+        if status.status == "battle" { return "bolt.fill" }
+        return status.players.count < 2 ? "person.badge.clock" : "person.2.fill"
     }
 
     private func fetchStatus() {
@@ -193,31 +224,32 @@ private struct TrainerWaitingCard: View {
     let isCurrentPlayer: Bool
 
     var body: some View {
-        DSPanel {
-            HStack(spacing: 13) {
-                ZStack {
-                    Circle().fill(accent.opacity(0.18))
-                    Image(systemName: player == nil ? "person.fill.questionmark" : (isCurrentPlayer ? "person.fill" : "figure.walk"))
-                        .font(.system(size: 30, weight: .black))
-                        .foregroundStyle(accent)
-                }
-                .frame(width: 58, height: 58)
-                .overlay(Circle().stroke(DSColor.ink, lineWidth: 2))
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(player?.name ?? "RIVAL BUSCADO...")
-                        .font(DSFont.body(17, weight: .bold))
-                        .foregroundStyle(player == nil ? DSColor.ink.opacity(0.52) : DSColor.ink)
-                    Text(player == nil ? "La señal espera un rival" : statusText)
-                        .font(DSFont.body(12, weight: .bold))
-                        .foregroundStyle(player == nil ? DSColor.ink.opacity(0.58) : accent)
-                }
-                Spacer(minLength: 0)
-                Text(player == nil ? "…" : (player!.ready ? "✓" : "▶"))
-                    .font(DSFont.title(18))
+        HStack(spacing: 13) {
+            ZStack {
+                Circle().fill(accent.opacity(0.18))
+                Image(systemName: player == nil ? "person.fill.questionmark" : (isCurrentPlayer ? "person.fill" : "figure.walk"))
+                    .font(.system(size: 24, weight: .black))
                     .foregroundStyle(accent)
             }
+            .frame(width: 48, height: 48)
+            .overlay(Circle().stroke(DSColor.ink, lineWidth: 2))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(player?.name ?? "RIVAL BUSCADO...")
+                    .font(DSFont.body(16, weight: .bold))
+                    .foregroundStyle(player == nil ? DSColor.ink.opacity(0.52) : DSColor.ink)
+                Text(player == nil ? "La señal espera un rival" : statusText)
+                    .font(DSFont.body(11, weight: .bold))
+                    .foregroundStyle(player == nil ? DSColor.ink.opacity(0.58) : accent)
+            }
+            Spacer(minLength: 0)
+            Text(player == nil ? "…" : (player!.ready ? "✓" : "▶"))
+                .font(DSFont.title(16))
+                .foregroundStyle(accent)
         }
+        .padding(10)
+        .background(DSColor.mist.opacity(0.48), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(DSColor.ink.opacity(0.5), lineWidth: 1.5) }
     }
 
     private var accent: Color { isCurrentPlayer ? DSColor.blue : DSColor.red }

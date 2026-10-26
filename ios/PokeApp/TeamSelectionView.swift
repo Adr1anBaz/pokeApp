@@ -61,8 +61,9 @@ struct TeamSelectionView: View {
     @State private var isLoading = false
     @State private var showBattle = false
     @State private var showLeaveConfirmation = false
+    @State private var roomStatus: RoomStatus?
 
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    private let columns = [GridItem(.flexible(), spacing: 10)]
     private let pollingTimer = Timer.publish(every: 2.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -92,6 +93,8 @@ struct TeamSelectionView: View {
                             }
                         }
                     }
+
+                    selectionSummary
 
                     if !message.isEmpty {
                         Text(message)
@@ -135,15 +138,35 @@ struct TeamSelectionView: View {
     private var draftHeader: some View {
         DSPanel {
             VStack(alignment: .leading, spacing: 7) {
-                Text("DRAFT DE EQUIPO")
-                    .font(DSFont.title(13))
-                    .foregroundStyle(DSColor.ink)
-                Text("Toca una carta para ocupar el espacio \(activeOrder). No puedes repetir Pokémon.")
+                HStack(alignment: .firstTextBaseline) {
+                    Text("ELIGE TU EQUIPO")
+                        .font(DSFont.title(13))
+                        .foregroundStyle(DSColor.ink)
+                    Spacer()
+                    Text("SALA \(config.roomCode)")
+                        .font(DSFont.body(10, weight: .bold))
+                        .foregroundStyle(DSColor.blue)
+                }
+                Text("Toca 3 Pokémon en el orden en que van a pelear.")
                     .font(DSFont.body(14, weight: .medium))
                     .foregroundStyle(DSColor.ink.opacity(0.78))
                     .fixedSize(horizontal: false, vertical: true)
+                TeamPlayerSummary(players: roomStatus?.players ?? [], playerID: config.playerId)
             }
         }
+    }
+
+    private var selectionSummary: some View {
+        HStack {
+            Text("SELECCIONADOS: \(selection.orderedIDs.count)/3")
+                .font(DSFont.body(13, weight: .bold))
+                .foregroundStyle(DSColor.ink)
+            Spacer()
+            Text(teamState)
+                .font(DSFont.body(12, weight: .bold))
+                .foregroundStyle(teamStateColor)
+        }
+        .padding(.horizontal, 4)
     }
 
     private var teamTray: some View {
@@ -159,7 +182,7 @@ struct TeamSelectionView: View {
             }
 
             DSButton(tone: .primary, action: submitTeam) {
-                Text(selection.isComplete ? "CONFIRMAR EQUIPO" : "ELIGE 3 POKÉMON")
+                Text(isLoading ? "ENVIANDO..." : (selection.isComplete ? "CONFIRMAR EQUIPO" : "ELIGE 3 POKÉMON"))
             }
             .disabled(!selection.isComplete || isLoading)
             .opacity(selection.isComplete ? 1 : 0.58)
@@ -184,8 +207,25 @@ struct TeamSelectionView: View {
         guard let url = URL(string: "\(config.serverURL)/room/\(config.roomCode)") else { return }
         URLSession.shared.dataTask(with: url) { data, _, _ in
             guard let data, let decoded = try? JSONDecoder().decode(RoomStatus.self, from: data) else { return }
-            DispatchQueue.main.async { if decoded.status == "battle" { showBattle = true } }
+            DispatchQueue.main.async {
+                roomStatus = decoded
+                if decoded.status == "battle" { showBattle = true }
+            }
         }.resume()
+    }
+
+    private var currentPlayer: PlayerStatus? {
+        roomStatus?.players.first { $0.playerId == config.playerId }
+    }
+
+    private var teamState: String {
+        guard let currentPlayer else { return "CONECTANDO" }
+        if currentPlayer.ready { return "LISTO" }
+        return currentPlayer.hasTeam ? "EQUIPO ENVIADO" : "ELIGIENDO"
+    }
+
+    private var teamStateColor: Color {
+        currentPlayer?.ready == true ? DSColor.grassDark : currentPlayer?.hasTeam == true ? DSColor.blue : DSColor.red
     }
 
     private func fetchPokemon() {
@@ -249,44 +289,40 @@ private struct PokemonDraftCard: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 0) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(pokemon.name.uppercased())
-                        .font(DSFont.body(14, weight: .bold))
-                        .lineLimit(1)
-                    Spacer(minLength: 2)
-                    Text("HP \(stat("hp"))")
-                        .font(DSFont.body(11, weight: .bold))
-                }
-                .foregroundStyle(DSColor.ink)
-
+            HStack(spacing: 12) {
                 ZStack(alignment: .topTrailing) {
                     PokemonArtwork(pokemon: pokemon)
-                        .frame(height: 106)
-                        .frame(maxWidth: .infinity)
+                        .frame(width: 82, height: 82)
                         .background(typeColor.opacity(0.22), in: RoundedRectangle(cornerRadius: 8))
                     if let selectedOrder {
                         Text("#\(selectedOrder)")
-                            .font(DSFont.title(11))
+                            .font(DSFont.title(10))
                             .foregroundStyle(DSColor.paper)
-                            .padding(7)
+                            .padding(6)
                             .background(DSColor.red, in: Circle())
-                            .padding(5)
+                            .padding(4)
                     }
                 }
-                .padding(.top, 5)
 
-                HStack(spacing: 4) {
-                    ForEach(pokemon.types, id: \.self) { type in TypeBadge(type: type) }
-                    Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(pokemon.name.uppercased())
+                            .font(DSFont.body(16, weight: .bold))
+                            .lineLimit(1)
+                        Spacer(minLength: 2)
+                        Text("HP \(stat("hp"))")
+                            .font(DSFont.body(11, weight: .bold))
+                    }
+                    HStack(spacing: 4) {
+                        ForEach(pokemon.types, id: \.self) { type in TypeBadge(type: type) }
+                    }
+                    HStack(spacing: 8) {
+                        StatBar(label: "ATK", value: stat("attack"), color: DSColor.red)
+                        StatBar(label: "DEF", value: stat("defense"), color: DSColor.blue)
+                        StatBar(label: "VEL", value: stat("speed"), color: DSColor.grassDark)
+                    }
                 }
-                .padding(.vertical, 7)
-
-                VStack(spacing: 4) {
-                    StatBar(label: "ATK", value: stat("attack"), color: DSColor.red)
-                    StatBar(label: "DEF", value: stat("defense"), color: DSColor.blue)
-                    StatBar(label: "VEL", value: stat("speed"), color: DSColor.grassDark)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(9)
             .background(DSColor.paper, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -366,6 +402,26 @@ private struct StatBar: View {
             }.frame(height: 6)
             Text("\(value)").font(DSFont.body(8, weight: .bold)).frame(width: 18, alignment: .trailing)
         }.foregroundStyle(DSColor.ink)
+    }
+}
+
+private struct TeamPlayerSummary: View {
+    let players: [PlayerStatus]
+    let playerID: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(players, id: \.playerId) { player in
+                Label(player.playerId == playerID ? "TÚ" : "RIVAL", systemImage: player.ready ? "checkmark.circle.fill" : "person.fill")
+                    .font(DSFont.body(10, weight: .bold))
+                    .foregroundStyle(player.ready ? DSColor.grassDark : player.playerId == playerID ? DSColor.blue : DSColor.mutedInk)
+            }
+            if players.count < 2 {
+                Label("ESPERANDO RIVAL", systemImage: "person.badge.clock")
+                    .font(DSFont.body(10, weight: .bold))
+                    .foregroundStyle(DSColor.mutedInk)
+            }
+        }
     }
 }
 
