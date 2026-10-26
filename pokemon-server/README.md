@@ -33,6 +33,12 @@ Para ejecutar el flujo completo:
 python test_server.py --test all
 ```
 
+Para probar la rendición:
+
+```bash
+python test_server.py --test forfeit
+```
+
 Si el servidor corre localmente, puedes cambiar la dirección base:
 
 ```bash
@@ -55,6 +61,7 @@ BASE_URL=http://localhost:3000 python test_server.py --test history
 - `POST /room/:code/ready` — Listo
 - `GET /room/:code/battle` — Estado de batalla
 - `POST /room/:code/battle/move` — Elegir movimiento
+- `POST /room/:code/battle/forfeit` — Rendirse (el rival gana la partida)
 - `GET /history` — Historial de partidas
 - `GET /room/:code/history` — Historial de una sala
 

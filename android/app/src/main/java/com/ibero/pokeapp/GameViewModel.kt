@@ -263,6 +263,21 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Give up the match: the rival wins. The next battle refresh brings the winner. */
+    fun forfeit() {
+        val code = roomCode ?: return
+        val id = playerId ?: return
+        launchRequest {
+            requireApi().forfeit(code, PlayerIdRequest(id))
+            turnMarker = null
+            refreshBattle()
+        }
+    }
+
+    /** Whether this player won, using the forfeit when there was one (the score may still be tied). */
+    fun iWon(b: BattleState?): Boolean =
+        b?.forfeitedBy?.let { it != myKey } ?: (myScore(b) > opponentScore(b))
+
     // ---------- Navigation & polling ----------
 
     private fun go(target: Screen) {

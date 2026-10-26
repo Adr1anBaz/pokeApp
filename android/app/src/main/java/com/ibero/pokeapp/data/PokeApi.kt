@@ -38,6 +38,9 @@ interface PokeApi {
     @POST("room/{code}/battle/move")
     suspend fun move(@Path("code") code: String, @Body body: MoveRequest): MoveResponse
 
+    @POST("room/{code}/battle/forfeit")
+    suspend fun forfeit(@Path("code") code: String, @Body body: PlayerIdRequest): ForfeitResponse
+
     // Health check: the server answers { status: "ok" } on "/".
     @GET(".")
     suspend fun health(): Map<String, Any?>

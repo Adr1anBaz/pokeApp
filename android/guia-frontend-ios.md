@@ -337,6 +337,20 @@ parámetros aleatorios fijos (semilla por ataque, para que no "tiemblen" entre f
 - Solo se puede jugar si: no hay animaciones pendientes, `status == "waiting_moves"`, no hay
   ganador, no estás esperando al rival y el combate mostrado es el actual.
 
+### 6.6 Rendirse (`POST /room/{code}/battle/forfeit`, ver `contratoApp.md` §10)
+
+- Chip **RENDIRSE** (fondo `RedDark`, borde blanco 40%, texto blanco 15) a la derecha de la fila
+  "▼ Elige un ataque ▼", visible mientras no haya ganador. El botón "atrás" del sistema también
+  abre la confirmación.
+- Confirmación: fondo negro al 60% (tocarlo cierra), panel DS con acento rojo:
+  **¿RENDIRTE?** · "Perderás la partida y {rival} será el ganador." · botones
+  **SÍ, RENDIRME** (rojo) y **SEGUIR PELEANDO** (azul).
+- Al confirmar: llamar al endpoint y refrescar la batalla. Cuando llega `winner` con
+  `forfeitedBy`, **no** hay animación de desmayo: se muestra `¡Te rendiste!` o
+  `¡{rival} se rindió!`, luego el sonido de victoria/derrota y la pantalla de resultado.
+- En el resultado, quién ganó se decide por `forfeitedBy` (el marcador puede seguir empatado)
+  y se agrega la línea "Te rendiste" / "{rival} se rindió".
+
 ---
 
 ## 7. Lógica del "director" de batalla (`ui/battle/BattleDirector.kt`) — importante

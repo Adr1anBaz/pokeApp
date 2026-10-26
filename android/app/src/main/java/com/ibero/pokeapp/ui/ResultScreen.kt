@@ -50,7 +50,7 @@ fun ResultScreen(vm: GameViewModel, modifier: Modifier = Modifier) {
     val b = vm.battle
     val myScore = vm.myScore(b)
     val theirScore = vm.opponentScore(b)
-    val won = myScore > theirScore
+    val won = vm.iWon(b)
     val pop = remember { Animatable(0f) }
     LaunchedEffect(Unit) { pop.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)) }
 
@@ -81,6 +81,12 @@ fun ResultScreen(vm: GameViewModel, modifier: Modifier = Modifier) {
                         "${vm.playerName}  $myScore - $theirScore  ${vm.opponent?.name ?: "Rival"}",
                         style = MaterialTheme.typography.headlineSmall, color = Ds.Red, textAlign = TextAlign.Center,
                     )
+                    b?.forfeitedBy?.let { side ->
+                        Text(
+                            if (side == vm.myKey) "Te rendiste" else "${vm.opponent?.name ?: "Tu rival"} se rindió",
+                            style = MaterialTheme.typography.bodyMedium, color = Ds.InkSoft,
+                        )
+                    }
                     val team = vm.myTeam
                     if (team.isNotEmpty()) {
                         Spacer(Modifier.height(10.dp))

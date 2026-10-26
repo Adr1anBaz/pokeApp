@@ -71,7 +71,7 @@ class BattleDirector(
         data class Turn(val turn: LastTurn, val hp1: Int, val hp2: Int) : Event
         data class Faint(val side: Side) : Event
         data class NextBattle(val state: BattleState) : Event
-        data class End(val won: Boolean) : Event
+        data class End(val won: Boolean, val forfeit: Boolean) : Event
     }
 
     private val queue = Channel<Event>(Channel.UNLIMITED)
@@ -135,7 +135,7 @@ class BattleDirector(
             modelBattle = b.battleNumber; modelHp1 = hp1; modelHp2 = hp2
             modelScore1 = score1; modelScore2 = score2
             seenTurn = turnKey(b, b.lastTurn)  // don't replay a turn that happened before we opened the screen
-            if (b.winner != null) endMatch(score1, score2)
+            if (b.winner != null) endMatch(b, score1, score2)
             return
         }
         if (ended) return
@@ -164,7 +164,7 @@ class BattleDirector(
         }
         modelScore1 = score1; modelScore2 = score2
 
-        if (b.winner != null) endMatch(score1, score2)
+        if (b.winner != null) endMatch(b, score1, score2)
     }
 
     private fun faintLoser(score1: Int, score2: Int) {
@@ -174,11 +174,17 @@ class BattleDirector(
         if (loserKey == "player1") modelHp1 = 0 else modelHp2 = 0
     }
 
-    private fun endMatch(score1: Int, score2: Int) {
-        if (modelHp1 > 0 && modelHp2 > 0) faintLoser(score1, score2)
-        val mineScore = if (mySide == "player1") score1 else score2
-        val theirScore = if (mySide == "player1") score2 else score1
-        enqueue(Event.End(mineScore > theirScore))
+    private fun endMatch(b: BattleState, score1: Int, score2: Int) {
+        val forfeitedBy = b.forfeitedBy
+        if (forfeitedBy != null) {
+            // Nobody fainted: someone gave up.
+            enqueue(Event.End(won = forfeitedBy != mySide, forfeit = true))
+        } else {
+            if (modelHp1 > 0 && modelHp2 > 0) faintLoser(score1, score2)
+            val mineScore = if (mySide == "player1") score1 else score2
+            val theirScore = if (mySide == "player1") score2 else score1
+            enqueue(Event.End(mineScore > theirScore, forfeit = false))
+        }
         ended = true
     }
 
@@ -199,7 +205,7 @@ class BattleDirector(
                 is Event.Turn -> playTurn(event)
                 is Event.Faint -> view(event.side)?.let { faint(it, event.side) }
                 is Event.NextBattle -> playNextBattle(event.state)
-                is Event.End -> playEnd(event.won)
+                is Event.End -> playEnd(event.won, event.forfeit)
             }
             pending--
         }
@@ -408,8 +414,11 @@ class BattleDirector(
         theirScore = if (mySide == "player1") s2 else s1
     }
 
-    private suspend fun playEnd(won: Boolean) {
+    private suspend fun playEnd(won: Boolean, forfeit: Boolean) {
         delay(300)
+        if (forfeit) {
+            say(if (won) "¡${rivalName()} se rindió!" else "¡Te rendiste!", 300)
+        }
         if (won) {
             Sound.play(Sfx.Victory)
             say("¡Derrotaste a ${rivalName()}!", 1600)

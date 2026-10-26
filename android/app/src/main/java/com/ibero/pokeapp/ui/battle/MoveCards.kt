@@ -65,7 +65,7 @@ private val MAX_CARD_HEIGHT = 165.dp
  * a Card-Jitsu tab with the type symbol and a big power number, and a window with the details.
  */
 @Composable
-fun CardHand(vm: GameViewModel, d: BattleDirector, modifier: Modifier) {
+fun CardHand(vm: GameViewModel, d: BattleDirector, modifier: Modifier, onForfeit: () -> Unit) {
     val b = vm.battle
     val me = d.mine
     val canMove = !d.busy && b?.status == "waiting_moves" && b.winner == null && !vm.waitingForOpponent &&
@@ -85,16 +85,35 @@ fun CardHand(vm: GameViewModel, d: BattleDirector, modifier: Modifier) {
             Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(CARD_GAP, Alignment.CenterVertically),
         ) {
-            Text(
-                when {
-                    canMove -> "▼ Elige un ataque ▼"
-                    vm.waitingForOpponent -> "Esperando la jugada del rival…"
-                    else -> ""
-                },
-                style = MaterialTheme.typography.titleSmall,
-                color = Ds.Yellow,
-                modifier = Modifier.align(Alignment.CenterHorizontally).height(hint),
-            )
+            Box(Modifier.fillMaxWidth().height(hint)) {
+                Text(
+                    when {
+                        canMove -> "▼ Elige un ataque ▼"
+                        vm.waitingForOpponent -> "Esperando al rival…"
+                        else -> ""
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Ds.Yellow,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+                if (me != null && b?.winner == null) {
+                    Text(
+                        "RENDIRSE",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Ds.RedDark)
+                            .border(1.5.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .clickable {
+                                Sound.play(Sfx.Select)
+                                onForfeit()
+                            }
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                }
+            }
             val moves = me?.moves.orEmpty()
             for (row in 0 until 2) {
                 Row(Modifier.fillMaxWidth().height(cardHeight), horizontalArrangement = Arrangement.spacedBy(CARD_GAP)) {

@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -95,17 +96,24 @@ fun TeamSelectScreen(vm: GameViewModel, modifier: Modifier = Modifier) {
             }
             ErrorBanner(vm.error, Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
 
-            Box(Modifier.weight(1f)) {
+            // fillMaxWidth so the loading view is centered on screen, not just within its own width.
+            Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (vm.pokemon.isEmpty()) {
                     Column(
-                        Modifier.align(Alignment.Center),
+                        Modifier.align(Alignment.Center).padding(horizontal = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         if (vm.loading) {
                             SpinningPokeball(64.dp)
-                            Text("Abriendo sobres…", style = MaterialTheme.typography.headlineSmall, color = Color.White)
-                            Text("(puede tardar unos segundos)", style = MaterialTheme.typography.bodyMedium, color = Color.White)
+                            Text(
+                                "Abriendo sobres…", style = MaterialTheme.typography.headlineSmall,
+                                color = Color.White, textAlign = TextAlign.Center,
+                            )
+                            Text(
+                                "(puede tardar unos segundos)", style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White, textAlign = TextAlign.Center,
+                            )
                         } else {
                             PixelButton("REINTENTAR", onClick = vm::loadPokemon)
                         }

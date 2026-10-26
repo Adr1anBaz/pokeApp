@@ -1,6 +1,7 @@
 package com.ibero.pokeapp.ui.battle
 
 import android.view.HapticFeedbackConstants
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -70,6 +71,7 @@ import com.ibero.pokeapp.ui.components.DsPanel
 import com.ibero.pokeapp.ui.components.ErrorBanner
 import com.ibero.pokeapp.ui.components.HpBar
 import com.ibero.pokeapp.ui.components.OutlinedText
+import com.ibero.pokeapp.ui.components.PixelButton
 import com.ibero.pokeapp.ui.components.PixelSprite
 import com.ibero.pokeapp.ui.components.Pokeball
 import com.ibero.pokeapp.ui.components.SpinningPokeball
@@ -95,15 +97,29 @@ fun BattleScreen(vm: GameViewModel, modifier: Modifier = Modifier) {
     LaunchedEffect(director) { director.run() }
     LaunchedEffect(vm.battle) { vm.battle?.let(director::onServerState) }
 
+    var confirmForfeit by remember { mutableStateOf(false) }
+    val matchOver = vm.battle?.winner != null
+    // The system back button asks to forfeit instead of leaving the battle silently.
+    BackHandler(enabled = !matchOver) { confirmForfeit = !confirmForfeit }
+    if (matchOver) confirmForfeit = false
+
     Box(modifier.fillMaxSize().background(Ds.Ink)) {
         Column(Modifier.fillMaxSize()) {
             TopBar(vm, director)
             Scene(director)
             MessageBox(vm, director)
             ErrorBanner(vm.error, Modifier.padding(horizontal = 10.dp))
-            CardHand(vm, director, Modifier.weight(1f))
+            CardHand(vm, director, Modifier.weight(1f), onForfeit = { confirmForfeit = true })
         }
         if (director.showVs) VsOverlay(vm, director)
+        if (confirmForfeit) {
+            ForfeitDialog(
+                rival = vm.opponent?.name ?: "tu rival",
+                loading = vm.loading,
+                onConfirm = vm::forfeit,
+                onDismiss = { confirmForfeit = false },
+            )
+        }
         if (director.flash.value > 0f) {
             Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = director.flash.value)))
         }
@@ -389,6 +405,37 @@ private fun MessageBox(vm: GameViewModel, d: BattleDirector) {
         }
         if (!d.busy && vm.waitingForOpponent) {
             SpinningPokeball(22.dp, Modifier.align(Alignment.BottomEnd))
+        }
+    }
+}
+
+// ---------------- Forfeit ----------------
+
+@Composable
+private fun ForfeitDialog(rival: String, loading: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f))
+            .clickable(enabled = !loading, onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        DsPanel(Modifier.fillMaxWidth(0.86f).clickable(enabled = false) {}, accent = Ds.Red) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("¿RENDIRTE?", style = MaterialTheme.typography.headlineMedium, color = Ds.Red)
+                Text(
+                    "Perderás la partida y $rival será el ganador.",
+                    style = MaterialTheme.typography.bodyLarge, color = Ds.Ink, textAlign = TextAlign.Center,
+                )
+                PixelButton(
+                    if (loading) "RINDIÉNDOSE…" else "SÍ, RENDIRME", onClick = onConfirm, enabled = !loading,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                PixelButton(
+                    "SEGUIR PELEANDO", onClick = onDismiss, enabled = !loading,
+                    color = Ds.Blue, dark = Ds.BlueDark, modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }

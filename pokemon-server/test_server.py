@@ -45,6 +45,62 @@ def test_history():
     print("\n✅ Prueba de historial terminada")
 
 
+def start_battle(host_name, guest_name):
+    """Crea una sala, une a dos jugadores, arma equipos y marca listos. Devuelve (code, p1, p2)."""
+    response = requests.post(f"{BASE}/room", json={"playerName": host_name})
+    response.raise_for_status()
+    code = response.json()["roomCode"]
+    p1 = response.json()["playerId"]
+
+    response = requests.post(f"{BASE}/room/join", json={"roomCode": code, "playerName": guest_name})
+    response.raise_for_status()
+    p2 = response.json()["playerId"]
+
+    for pid in (p1, p2):
+        response = requests.get(f"{BASE}/room/{code}/pokemon", headers={"playerid": pid})
+        response.raise_for_status()
+        pokes = response.json()["pokemon"]
+        team = [{"pokemonId": p["id"], "order": i + 1} for i, p in enumerate(pokes[:3])]
+        requests.post(f"{BASE}/room/{code}/team", json={"playerId": pid, "team": team}).raise_for_status()
+    for pid in (p1, p2):
+        requests.post(f"{BASE}/room/{code}/ready", json={"playerId": pid}).raise_for_status()
+    return code, p1, p2
+
+
+def test_forfeit():
+    """El jugador 1 se rinde: gana el jugador 2 y ya no se aceptan movimientos."""
+    code, p1, p2 = start_battle("Rendido", "Ganador")
+
+    response = requests.post(f"{BASE}/room/{code}/battle/forfeit", json={"playerId": p1})
+    response.raise_for_status()
+    pp("Rendirse", response.json())
+    assert response.json()["winner"] == "Ganador"
+
+    response = requests.get(f"{BASE}/room/{code}/battle")
+    response.raise_for_status()
+    battle = response.json()
+    pp("Batalla después de rendirse", {k: battle[k] for k in ("status", "winner", "forfeitedBy", "score")})
+    assert battle["winner"] == "Ganador"
+    assert battle["forfeitedBy"] == "player1"
+    assert battle["status"] == "finished"
+
+    response = requests.get(f"{BASE}/room/{code}")
+    assert response.json()["status"] == "finished"
+
+    move = battle["currentPokemon"]["player2"]["moves"][0]["id"]
+    response = requests.post(f"{BASE}/room/{code}/battle/move", json={"playerId": p2, "moveId": move})
+    assert response.status_code == 400, "No se deben aceptar movimientos después de rendirse"
+
+    response = requests.post(f"{BASE}/room/{code}/battle/forfeit", json={"playerId": p2})
+    assert response.status_code == 400, "No se puede rendir dos veces"
+
+    response = requests.get(f"{BASE}/room/{code}/history")
+    matches = response.json()["matches"]
+    assert len(matches) == 1 and matches[0]["forfeitedBy"] == "player1"
+
+    print("\n✅ Prueba de rendición terminada")
+
+
 def test_full():
     # 1. Crear sala
     response = requests.post(f"{BASE}/room", json={"playerName": "Adrian"})
@@ -141,11 +197,11 @@ def test_full():
 def main():
     parser = argparse.ArgumentParser(
         description="Pruebas del servidor Pokémon Battle",
-        epilog="Ejemplos: python test_server.py --test history | python test_server.py --test all",
+        epilog="Ejemplos: python test_server.py --test history | python test_server.py --test forfeit | python test_server.py --test all",
     )
     parser.add_argument(
         "--test",
-        choices=("all", "history"),
+        choices=("all", "history", "forfeit"),
         default="all",
         help="Prueba a ejecutar (por defecto: all)",
     )
@@ -153,6 +209,8 @@ def main():
 
     if args.test == "history":
         test_history()
+    elif args.test == "forfeit":
+        test_forfeit()
     else:
         test_full()
 

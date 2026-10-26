@@ -281,6 +281,7 @@ app.get('/room/:roomCode/battle', (req, res) => {
     },
     score: room.score,
     winner: room.winner || null,
+    forfeitedBy: room.forfeitedBy || null,
     lastTurn: b.lastTurn
   });
 });
@@ -289,6 +290,7 @@ app.get('/room/:roomCode/battle', (req, res) => {
 app.post('/room/:roomCode/battle/move', (req, res) => {
   const room = rooms[req.params.roomCode.toUpperCase()];
   if (!room || !room.battle) return res.status(400).json({ error: 'No hay batalla' });
+  if (room.status === 'finished') return res.status(400).json({ error: 'La partida ya terminó' });
 
   const { playerId, moveId } = req.body;
   const playerIndex = room.players.findIndex(p => p.playerId === playerId);
@@ -307,6 +309,41 @@ app.post('/room/:roomCode/battle/move', (req, res) => {
     waitingForOpponent: !room.battle.pendingMoves.player1 || !room.battle.pendingMoves.player2
   });
 });
+
+// 9. Rendirse: el jugador abandona la batalla y el rival gana la partida
+app.post('/room/:roomCode/battle/forfeit', (req, res) => {
+  const room = rooms[req.params.roomCode.toUpperCase()];
+  if (!room) return res.status(404).json({ error: 'Sala no encontrada' });
+  if (!room.battle) return res.status(400).json({ error: 'No hay batalla' });
+  if (room.status === 'finished') return res.status(400).json({ error: 'La partida ya terminó' });
+
+  const { playerId } = req.body;
+  const playerIndex = room.players.findIndex(p => p.playerId === playerId);
+  if (playerIndex === -1) return res.status(400).json({ error: 'Jugador no encontrado' });
+
+  const winnerIndex = playerIndex === 0 ? 1 : 0;
+  room.status = 'finished';
+  room.winner = room.players[winnerIndex].name;
+  room.forfeitedBy = playerIndex === 0 ? 'player1' : 'player2';
+  room.battle.status = 'finished';
+  room.battle.pendingMoves = {};
+  recordMatch(room);
+
+  res.json({ success: true, winner: room.winner });
+});
+
+function recordMatch(room) {
+  history.push({
+    id: uuidv4(),
+    roomCode: room.roomCode,
+    date: new Date().toISOString(),
+    players: room.players.map(p => p.name),
+    score: { ...room.score },
+    winner: room.winner,
+    battlesPlayed: room.currentBattle,
+    forfeitedBy: room.forfeitedBy || null
+  });
+}
 
 function resolveTurn(room) {
   const b = room.battle;
@@ -349,15 +386,7 @@ function resolveTurn(room) {
     if (room.score.player1 >= 2 || room.score.player2 >= 2) {
       room.status = 'finished';
       room.winner = room.score.player1 >= 2 ? room.players[0].name : room.players[1].name;
-      history.push({
-        id: uuidv4(),
-        roomCode: room.roomCode,
-        date: new Date().toISOString(),
-        players: room.players.map(p => p.name),
-        score: { ...room.score },
-        winner: room.winner,
-        battlesPlayed: room.currentBattle
-      });
+      recordMatch(room);
     } else {
       // Preparar siguiente combate
       room.currentBattle++;
@@ -373,7 +402,8 @@ function startNextBattle(room) {
   const p2 = room.players[1];
   const idx = room.currentBattle - 1;
 
-  if (idx >= 3) return;
+  // Alguien se rindió durante la pausa entre combates
+  if (idx >= 3 || room.status === 'finished') return;
 
   const poke1 = p1.team[idx];
   const poke2 = p2.team[idx];

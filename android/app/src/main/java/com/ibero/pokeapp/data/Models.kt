@@ -51,6 +51,8 @@ data class BattleState(
     val currentPokemon: CurrentPokemon?,
     val score: Score?,
     val winner: String?,
+    /** "player1" / "player2" when the match ended because that player forfeited. */
+    val forfeitedBy: String?,
     val lastTurn: LastTurn?,
 )
 
@@ -98,5 +100,7 @@ data class LastTurn(
 data class MoveRequest(val playerId: String, val moveId: Int)
 
 data class MoveResponse(val accepted: Boolean, val waitingForOpponent: Boolean)
+
+data class ForfeitResponse(val success: Boolean, val winner: String?)
 
 data class ErrorResponse(val error: String?)
