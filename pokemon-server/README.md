@@ -39,6 +39,12 @@ Si el servidor corre localmente, puedes cambiar la dirección base:
 BASE_URL=http://localhost:3000 python test_server.py --test history
 ```
 
+Para comprobar la eliminación manual de una sala:
+
+```bash
+python test_server.py --test delete
+```
+
 ## Cómo usar desde las apps
 
 1. Averigua la IP local de la computadora donde corre el servidor (ej. `192.168.1.10`).
@@ -57,6 +63,8 @@ BASE_URL=http://localhost:3000 python test_server.py --test history
 - `POST /room/:code/battle/move` — Elegir movimiento
 - `GET /history` — Historial de partidas
 - `GET /room/:code/history` — Historial de una sala
+- `POST /room/:code/leave` — Salir de una sala como jugador
+- `DELETE /room/:code` — Eliminar una sala manualmente
 
 ## Notas
 

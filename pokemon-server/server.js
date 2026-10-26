@@ -469,7 +469,46 @@ app.get('/room/:roomCode/history', (req, res) => {
   res.json({ roomCode: code, total: matches.length, matches });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor corriendo en http://0.0.0.0:${PORT}`);
-  console.log('Listo para conexiones en la red local');
+app.post('/room/:roomCode/leave', (req, res) => {
+  const code = req.params.roomCode.toUpperCase();
+  const room = rooms[code];
+  if (!room) return res.status(404).json({ error: 'Sala no encontrada' });
+
+  const playerIndex = room.players.findIndex(p => p.playerId === req.body.playerId);
+  if (playerIndex === -1) return res.status(400).json({ error: 'Jugador no encontrado' });
+
+  room.players.splice(playerIndex, 1);
+
+  if (room.players.length === 0) {
+    delete rooms[code];
+  } else {
+    room.status = 'waiting';
+    room.battle = null;
+    room.currentBattle = 1;
+    room.score = { player1: 0, player2: 0 };
+    room.players.forEach(player => {
+      player.ready = false;
+      player.hasTeam = false;
+      player.team = [];
+    });
+  }
+
+  res.json({ success: true, roomCode: code });
 });
+
+app.delete('/room/:roomCode', (req, res) => {
+  const code = req.params.roomCode.toUpperCase();
+  if (!rooms[code]) return res.status(404).json({ error: 'Sala no encontrada' });
+
+  delete rooms[code];
+  res.json({ success: true, roomCode: code });
+});
+
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor corriendo en http://0.0.0.0:${PORT}`);
+    console.log('Listo para conexiones en la red local');
+  });
+}
+
+module.exports = { app, calculateDamage, resolveTurn };

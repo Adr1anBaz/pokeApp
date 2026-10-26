@@ -45,6 +45,21 @@ def test_history():
     print("\n✅ Prueba de historial terminada")
 
 
+def test_delete():
+    """Comprueba que una sala se pueda eliminar manualmente."""
+    room = requests.post(f"{BASE}/room", json={"playerName": "Delete test"})
+    room.raise_for_status()
+    room_code = room.json()["roomCode"]
+
+    response = requests.delete(f"{BASE}/room/{room_code}")
+    response.raise_for_status()
+    assert response.json()["success"] is True
+
+    response = requests.get(f"{BASE}/room/{room_code}")
+    assert response.status_code == 404, response.text
+    print(f"\n✅ Sala {room_code} eliminada manualmente")
+
+
 def test_full():
     # 1. Crear sala
     response = requests.post(f"{BASE}/room", json={"playerName": "Adrian"})
@@ -141,11 +156,14 @@ def test_full():
 def main():
     parser = argparse.ArgumentParser(
         description="Pruebas del servidor Pokémon Battle",
-        epilog="Ejemplos: python test_server.py --test history | python test_server.py --test all",
+        epilog=(
+            "Ejemplos: python test_server.py --test history | "
+            "python test_server.py --test delete | python test_server.py --test all"
+        ),
     )
     parser.add_argument(
         "--test",
-        choices=("all", "history"),
+        choices=("all", "history", "delete"),
         default="all",
         help="Prueba a ejecutar (por defecto: all)",
     )
@@ -153,6 +171,8 @@ def main():
 
     if args.test == "history":
         test_history()
+    elif args.test == "delete":
+        test_delete()
     else:
         test_full()
 
