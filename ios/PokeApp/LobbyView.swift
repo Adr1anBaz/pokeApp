@@ -24,7 +24,7 @@ struct LobbyView: View {
         ZStack {
             lobbyBackground
             ScrollView {
-                VStack(spacing: 15) {
+                VStack(spacing: 16) {
                     lobbyHeader
                     trainerNameField
                     createPanel
@@ -42,8 +42,8 @@ struct LobbyView: View {
                     }
                 }
                 .frame(maxWidth: 390)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 20)
             }
         }
         .onAppear { name = config.playerName }
@@ -59,7 +59,7 @@ struct LobbyView: View {
             Text("SALA DE ENLACE")
                 .font(DSFont.title(18))
                 .foregroundStyle(DSColor.ink)
-            Text("ELIGE UNA MISIÓN")
+            Text("CREA O ENCUENTRA UNA PARTIDA")
                 .font(DSFont.body(13, weight: .bold))
                 .foregroundStyle(DSColor.red)
         }
@@ -68,30 +68,14 @@ struct LobbyView: View {
 
     private var trainerNameField: some View {
         DSPanel {
-            HStack(spacing: 9) {
-                Text("▶").foregroundStyle(DSColor.red)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("NOMBRE DE ENTRENADOR")
-                        .font(DSFont.body(11, weight: .bold))
-                        .foregroundStyle(DSColor.ink.opacity(0.68))
-                    TextField("Tu nombre", text: $name)
-                        .font(DSFont.body(17, weight: .bold))
-                        .foregroundStyle(DSColor.ink)
-                }
-            }
-            .padding(5)
+            DSInput(label: "NOMBRE DE ENTRENADOR", placeholder: "Tu nombre", text: $name)
         }
     }
 
     private var createPanel: some View {
         DSPanel {
             VStack(alignment: .leading, spacing: 12) {
-                Text("NUEVA AVENTURA")
-                    .font(DSFont.title(12))
-                    .foregroundStyle(DSColor.blue)
-                Text("Crea una sala y espera a tu rival.")
-                    .font(DSFont.body(14))
-                    .foregroundStyle(DSColor.ink)
+                DSSectionTitle(title: "NUEVA AVENTURA", subtitle: "Crea una sala y espera a tu rival.", color: DSColor.blue)
                 DSButton { createRoom() } label: {
                     Label("CREAR SALA", systemImage: "plus.circle.fill")
                 }
@@ -104,16 +88,9 @@ struct LobbyView: View {
     private var joinPanel: some View {
         DSPanel {
             VStack(alignment: .leading, spacing: 12) {
-                Text("UNIRSE A UN AMIGO")
-                    .font(DSFont.title(12))
-                    .foregroundStyle(DSColor.red)
-                TextField("CÓDIGO DE SALA", text: $joinCode)
-                    .font(DSFont.body(17, weight: .bold))
-                    .multilineTextAlignment(.center)
+                DSSectionTitle(title: "UNIRSE A UN AMIGO", subtitle: "Introduce el código que te compartieron.", color: DSColor.red)
+                DSInput(label: "CÓDIGO DE SALA", placeholder: "ABCD", text: $joinCode, alignment: .center, fill: DSColor.yellow.opacity(0.22))
                     .textInputAutocapitalization(.characters)
-                    .padding(.vertical, 10)
-                    .background(DSColor.yellow.opacity(0.22), in: RoundedRectangle(cornerRadius: 7))
-                    .overlay { RoundedRectangle(cornerRadius: 7).stroke(DSColor.ink, lineWidth: 2) }
 #if os(iOS)
                     .textInputAutocapitalization(.characters)
 #endif

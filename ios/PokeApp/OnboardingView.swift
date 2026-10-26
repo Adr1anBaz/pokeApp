@@ -17,21 +17,21 @@ struct OnboardingView: View {
             )
             .ignoresSafeArea()
 
-            VStack(spacing: 22) {
-                Spacer(minLength: 28)
+            VStack(spacing: 20) {
+                Spacer(minLength: 22)
 
                 VStack(spacing: 8) {
                     Text("POKÉMON ARENA")
-                        .font(DSFont.title(22))
+                        .font(DSFont.title(20))
                         .foregroundStyle(DSColor.ink)
                         .multilineTextAlignment(.center)
-                    Text("CONEXIÓN LOCAL")
+                    Text("PREPARA TU CONEXIÓN LOCAL")
                         .font(DSFont.body(14, weight: .bold))
                         .foregroundStyle(DSColor.red)
                 }
 
                 DSPanel {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 18) {
                         HStack(alignment: .top, spacing: 8) {
                             Text("▶")
                                 .font(DSFont.body(17, weight: .bold))
@@ -44,24 +44,11 @@ struct OnboardingView: View {
                             }
                         }
 
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text("IP DEL SERVIDOR")
-                                .font(DSFont.body(12, weight: .bold))
-                                .foregroundStyle(DSColor.ink.opacity(0.7))
-                            TextField("Ej: 172.22.41.221", text: $ip)
-                                .font(DSFont.body(16, weight: .bold))
-                                .foregroundStyle(DSColor.ink)
-                                .padding(12)
-                                .background(DSColor.skyTop.opacity(0.2), in: RoundedRectangle(cornerRadius: 7))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 7)
-                                        .stroke(DSColor.ink, lineWidth: 2)
-                                }
+                        DSInput(label: "IP DEL SERVIDOR", placeholder: "Ej: 172.22.41.221", text: $ip, fill: DSColor.skyTop.opacity(0.22))
 #if os(iOS)
-                                .keyboardType(.numbersAndPunctuation)
-                                .textInputAutocapitalization(.never)
+                            .keyboardType(.numbersAndPunctuation)
+                            .textInputAutocapitalization(.never)
 #endif
-                        }
                     }
                 }
 
@@ -76,14 +63,15 @@ struct OnboardingView: View {
                 .disabled(cleanIP.isEmpty)
                 .opacity(cleanIP.isEmpty ? 0.55 : 1)
 
-                Text("Modo inalámbrico local")
+                Text("Ambos jugadores deben estar en la misma red Wi‑Fi")
                     .font(DSFont.body(12, weight: .bold))
                     .foregroundStyle(DSColor.ink.opacity(0.62))
 
                 Spacer()
             }
             .frame(maxWidth: 390)
-            .padding(.horizontal, 22)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
         }
     }
 }
