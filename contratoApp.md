@@ -237,6 +237,40 @@ Cuando ambos jugadores hayan elegido movimiento:
 
 ---
 
+## 10. Rendirse (abandonar la batalla)
+**POST** `/room/{roomCode}/battle/forfeit`
+
+**Request:**
+```json
+{
+  "playerId": "p1-uuid"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "winner": "Amiga"
+}
+```
+
+El jugador que se rinde pierde la partida completa. La sala pasa a `status: "finished"` y
+`GET /room/{roomCode}/battle` devuelve el ganador y quién se rindió:
+
+```json
+{
+  "status": "finished",
+  "winner": "Amiga",
+  "forfeitedBy": "player1"
+}
+```
+
+`forfeitedBy` es `null` si la partida terminó normalmente. Después de rendirse ya no se aceptan
+movimientos (`400 "La partida ya terminó"`).
+
+---
+
 ## Notas importantes
 
 - Guardar `playerId` y `roomCode` localmente en cada app.

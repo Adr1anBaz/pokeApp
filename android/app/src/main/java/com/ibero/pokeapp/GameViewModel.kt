@@ -11,6 +11,7 @@ import com.ibero.pokeapp.data.BattlePokemon
 import com.ibero.pokeapp.data.BattleState
 import com.ibero.pokeapp.data.CreateRoomRequest
 import com.ibero.pokeapp.data.JoinRoomRequest
+import com.ibero.pokeapp.data.MoveNames
 import com.ibero.pokeapp.data.MoveRequest
 import com.ibero.pokeapp.data.PlayerIdRequest
 import com.ibero.pokeapp.data.PlayerInfo
@@ -262,6 +263,21 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Give up the match: the rival wins. The next battle refresh brings the winner. */
+    fun forfeit() {
+        val code = roomCode ?: return
+        val id = playerId ?: return
+        launchRequest {
+            requireApi().forfeit(code, PlayerIdRequest(id))
+            turnMarker = null
+            refreshBattle()
+        }
+    }
+
+    /** Whether this player won, using the forfeit when there was one (the score may still be tied). */
+    fun iWon(b: BattleState?): Boolean =
+        b?.forfeitedBy?.let { it != myKey } ?: (myScore(b) > opponentScore(b))
+
     // ---------- Navigation & polling ----------
 
     private fun go(target: Screen) {
@@ -311,9 +327,19 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         }
         when {
             state.status == "battle" || state.status == "finished" -> go(Screen.Battle)
-            screen == Screen.WaitingRoom && state.players.orEmpty().size >= 2 -> go(Screen.TeamSelect)
+            screen == Screen.WaitingRoom && state.players.orEmpty().size >= 2 && !opponentArriving -> {
+                // Let the "rival found" moment play before moving on.
+                opponentArriving = true
+                viewModelScope.launch {
+                    delay(OPPONENT_ARRIVAL_MS)
+                    opponentArriving = false
+                    if (screen == Screen.WaitingRoom) go(Screen.TeamSelect)
+                }
+            }
         }
     }
+
+    private var opponentArriving = false
 
     private suspend fun refreshBattle() {
         val code = roomCode ?: return
@@ -327,8 +353,18 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
                 turnMarker = null
             }
         }
-        if (b.winner != null) go(Screen.Result)
+        b.currentPokemon?.let { cp ->
+            MoveNames.prefetch(getApplication(), cp.player1?.moves.orEmpty() + cp.player2?.moves.orEmpty())
+        }
+        // The match is decided: stop polling. The battle screen calls showResult()
+        // once the final knockout has been animated.
+        if (b.winner != null) pollJob?.cancel()
     }
+
+    fun showResult() = go(Screen.Result)
+
+    /** The Pokémon this player picked, in battle order (empty after resuming a room). */
+    val myTeam: List<Pokemon> get() = selected.mapNotNull { id -> pokemon.find { it.id == id } }
 
     private fun launchRequest(block: suspend () -> Unit) {
         if (loading) return
@@ -351,7 +387,8 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         const val ROOM_POLL_MS = 2000L
-        const val BATTLE_POLL_MS = 1500L
+        const val BATTLE_POLL_MS = 1000L
+        const val OPPONENT_ARRIVAL_MS = 1800L
         const val POLL_ERROR = "Sin conexión con el servidor, reintentando…"
 
         /** "172.22.41.221" -> "http://172.22.41.221:3000"; full URLs and ip:port are kept as typed. */

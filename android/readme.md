@@ -30,10 +30,33 @@ Elegir 3 Pokémon en orden → Confirmar equipo → Listo → Batalla (polling c
 Se guardan en `SharedPreferences`: `serverUrl`, `playerName`, `playerId`, `roomCode` y `role`.
 Si cierras la app a mitad de partida, en el Lobby aparece "Volver a la sala".
 
+## Visuales y sonido (sin archivos en el repo)
+
+Todo se carga en tiempo real desde URLs:
+
+- **Sprites animados** (frente y espalda) de Showdown vía PokeAPI; si no existen, sprite estático.
+- **Artwork oficial** en las cartas de selección y en la pantalla de resultado.
+- **Gritos de los Pokémon** desde `PokeAPI/cries`.
+- **Nombres de movimientos en español** desde `pokeapi.co/api/v2/move/{id}` (se guardan en caché).
+- **Fuentes pixel** (Press Start 2P y Pixelify Sans) desde el repo de Google Fonts, guardadas en el dispositivo.
+- Efectos de sonido (golpes, desmayo, Poké Ball, victoria) **sintetizados en código**.
+- Fondos, plataformas, Poké Balls, barras de PS y efectos de ataque **dibujados en código**.
+
+La batalla usa un "director" (`ui/battle/BattleDirector.kt`) que convierte cada respuesta del
+servidor en una cola de animaciones (intro VS, lanzar Poké Ball, ataque, daño, desmayo, cambio de
+combate, final) y las reproduce en orden.
+
+Cambios sugeridos al servidor para que las animaciones sean exactas: ver `backend-requests.md`.
+
 ## Estructura
 
 - `data/PokeApi.kt` — endpoints con Retrofit + manejo de errores de red.
-- `data/Models.kt` — JSON del contrato.
+- `data/Models.kt` — JSON del contrato (+ campos opcionales propuestos).
 - `data/Prefs.kt` — datos guardados localmente.
+- `data/MoveNames.kt` — nombres de movimientos en español.
 - `GameViewModel.kt` — estado, navegación y polling.
-- `ui/` — pantallas (Compose). Sprites con Coil.
+- `audio/Sound.kt` — efectos sintetizados y gritos.
+- `ui/theme/` — paleta DS, fuentes, colores por tipo, URLs de sprites.
+- `ui/components/` — paneles, botones, Poké Ball, barra de PS, sprites pixel.
+- `ui/battle/` — escena, director de animaciones, efectos por tipo y cartas.
+- `ui/` — resto de pantallas (Compose).
