@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 
 struct BattleState: Codable {
@@ -46,6 +47,7 @@ struct LastTurn: Codable {
 
 struct BattleView: View {
     @ObservedObject var config: AppConfig
+    @ObservedObject private var audio = AudioManager.shared
     @State private var battle: BattleState?
     @State private var message = ""
     @State private var isSendingMove = false
@@ -63,6 +65,7 @@ struct BattleView: View {
     @State private var ownImpact = false
     @State private var opponentImpact = false
     @State private var effect: BattleEffect?
+    @State private var hasPlayedVictory = false
 
     private let pollingTimer = Timer.publish(every: 2.0, on: .main, in: .common).autoconnect()
 
@@ -87,6 +90,14 @@ struct BattleView: View {
         .navigationTitle("Combate")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    audio.toggleMute()
+                } label: {
+                    Image(systemName: audio.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                }
+                .accessibilityLabel(audio.isMuted ? "Activar sonido" : "Silenciar sonido")
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Salir") {
                     showLeaveConfirmation = true
@@ -274,11 +285,16 @@ struct BattleView: View {
             displayedOwnHP = own.hp
             displayedOpponentHP = opponent.hp
             battle = decoded
+            audio.playCry(named: own.name)
             return
         }
 
         let isNewTurn = fingerprint != lastTurnFingerprint
         battle = decoded
+        if decoded.winner != nil, !hasPlayedVictory {
+            hasPlayedVictory = true
+            audio.play(.victory)
+        }
         if isNewTurn {
             lastTurnFingerprint = fingerprint
             enqueueCues(for: decoded, own: own, opponent: opponent)
@@ -332,12 +348,15 @@ struct BattleView: View {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.46) {
             guard cue.damagesTarget else { return }
+            self.audio.play(.hit)
             withAnimation(.linear(duration: 0.09).repeatCount(4, autoreverses: true)) {
                 if cue.attackerIsOwn { self.opponentImpact = true } else { self.ownImpact = true }
             }
             withAnimation(.easeOut(duration: 0.65)) {
                 if cue.attackerIsOwn { self.displayedOpponentHP = self.opponentPokemon?.hp } else { self.displayedOwnHP = self.ownPokemon?.hp }
             }
+            let targetHP = cue.attackerIsOwn ? self.opponentPokemon?.hp : self.ownPokemon?.hp
+            if targetHP == 0 { self.audio.play(.faint) }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.82) {
             withAnimation(.easeOut(duration: 0.18)) {
@@ -378,6 +397,7 @@ struct BattleView: View {
         ])
 
         isSendingMove = true
+        audio.play(.selection)
         message = "Movimiento enviado. Esperando al rival..."
 
         URLSession.shared.dataTask(with: request) { _, response, error in
@@ -394,6 +414,7 @@ struct BattleView: View {
                     message = "Error: el servidor rechazó el movimiento"
                     return
                 }
+                audio.play(.confirmation)
             }
         }.resume()
     }
@@ -550,6 +571,93 @@ private struct MoveGrid: View {
                 .disabled(isDisabled)
                 .opacity(isDisabled ? 0.55 : 1)
             }
+        }
+    }
+}
+
+/// Reproduce respuestas breves sin depender de recursos de audio incluidos en la app.
+final class AudioManager: ObservableObject {
+    static let shared = AudioManager()
+
+    enum Effect {
+        case selection, confirmation, hit, faint, victory
+
+        var tone: (frequency: Double, duration: Double) {
+            switch self {
+            case .selection: return (660, 0.06)
+            case .confirmation: return (880, 0.10)
+            case .hit: return (180, 0.09)
+            case .faint: return (220, 0.32)
+            case .victory: return (988, 0.24)
+            }
+        }
+    }
+
+    @Published private(set) var isMuted: Bool
+
+    private let mutedKey = "battleAudioMuted"
+    private let engine = AVAudioEngine()
+    private let player = AVAudioPlayerNode()
+    private let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
+    private var cryPlayer: AVPlayer?
+
+    private init() {
+        isMuted = UserDefaults.standard.bool(forKey: mutedKey)
+        engine.attach(player)
+        engine.connect(player, to: engine.mainMixerNode, format: format)
+    }
+
+    func toggleMute() {
+        isMuted.toggle()
+        UserDefaults.standard.set(isMuted, forKey: mutedKey)
+        if isMuted {
+            player.stop()
+            cryPlayer?.pause()
+        }
+    }
+
+    func play(_ effect: Effect) {
+        guard !isMuted, startEngineIfPossible() else { return }
+        let tone = effect.tone
+        let frames = AVAudioFrameCount(format.sampleRate * tone.duration)
+        guard frames > 0,
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames),
+              let samples = buffer.floatChannelData?[0] else { return }
+
+        buffer.frameLength = frames
+        for index in 0..<Int(frames) {
+            let progress = Double(index) / Double(frames)
+            let envelope = sin(Double.pi * progress)
+            samples[index] = Float(sin(2 * Double.pi * tone.frequency * Double(index) / format.sampleRate) * envelope * 0.22)
+        }
+        player.scheduleBuffer(buffer, at: nil)
+        player.play()
+    }
+
+    /// Los gritos son remotos y opcionales: si la red o el archivo fallan, AVPlayer no altera la interfaz.
+    func playCry(named pokemonName: String) {
+        let filename = pokemonName.lowercased()
+            .replacingOccurrences(of: "♀", with: "-f")
+            .replacingOccurrences(of: "♂", with: "-m")
+            .replacingOccurrences(of: " ", with: "-")
+            .filter { $0.isLetter || $0.isNumber || $0 == "-" }
+        guard !isMuted, !filename.isEmpty,
+              let url = URL(string: "https://play.pokemonshowdown.com/audio/cries/" + filename + ".mp3") else { return }
+        let player = AVPlayer(url: url)
+        player.volume = 0.35
+        cryPlayer = player
+        player.play()
+    }
+
+    private func startEngineIfPossible() -> Bool {
+        if engine.isRunning { return true }
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.ambient)
+            try AVAudioSession.sharedInstance().setActive(true)
+            try engine.start()
+            return true
+        } catch {
+            return false
         }
     }
 }
