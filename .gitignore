@@ -1,0 +1,42 @@
+# Dependencias
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Variables de entorno y secretos locales
+.env
+.env.*
+!.env.example
+
+# Logs y archivos temporales
+*.log
+logs/
+tmp/
+temp/
+
+# Cobertura y artefactos de compilación
+coverage/
+dist/
+build/
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Android / Gradle
+android/.gradle/
+android/local.properties
+android/**/build/
+
+# iOS / Xcode
+ios/Pods/
+ios/DerivedData/
+ios/**/build/
+ios/**/*.xcuserstate
+ios/**/*.xcuserdata/
