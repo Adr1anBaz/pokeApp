@@ -135,6 +135,29 @@ struct DSPanel<Content: View>: View {
     }
 }
 
+/// Símbolo propio para los estados vacíos: SF Symbols no incluye una pokébola.
+struct DSPokeBallSymbol: View {
+    var color: Color = DSColor.ink
+
+    var body: some View {
+        GeometryReader { proxy in
+            let line = max(2, min(proxy.size.width, proxy.size.height) * 0.09)
+            ZStack {
+                Circle().fill(DSColor.paper)
+                VStack(spacing: 0) {
+                    color
+                    DSColor.paper
+                }
+                Rectangle().fill(color).frame(height: line)
+                Circle().fill(DSColor.paper).frame(width: proxy.size.width * 0.34, height: proxy.size.height * 0.34)
+                Circle().stroke(color, lineWidth: line).frame(width: proxy.size.width * 0.34, height: proxy.size.height * 0.34)
+                Circle().stroke(color, lineWidth: line)
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+    }
+}
+
 struct DSInput: View {
     let label: String
     let placeholder: String

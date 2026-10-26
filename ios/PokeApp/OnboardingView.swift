@@ -17,8 +17,9 @@ struct OnboardingView: View {
             )
             .ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                Spacer(minLength: 22)
+            ScrollView {
+                VStack(spacing: 20) {
+                    Spacer(minLength: 22)
 
                 VStack(spacing: 8) {
                     Text("POKÉMON ARENA")
@@ -67,11 +68,13 @@ struct OnboardingView: View {
                     .font(DSFont.body(12, weight: .bold))
                     .foregroundStyle(DSColor.ink.opacity(0.62))
 
-                Spacer()
+                    Spacer(minLength: 12)
+                }
+                .frame(maxWidth: 390)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
-            .frame(maxWidth: 390)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 }

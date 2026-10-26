@@ -64,9 +64,9 @@ struct ResultView: View {
                         Label("VOLVER AL LOBBY", systemImage: "house.fill")
                     }
                 }
-                .frame(maxWidth: 430)
+                .frame(maxWidth: 390)
                 .padding(.horizontal, 16)
-                .padding(.vertical, 18)
+                .padding(.vertical, 14)
             }
         }
         .navigationBarBackButtonHidden(true)

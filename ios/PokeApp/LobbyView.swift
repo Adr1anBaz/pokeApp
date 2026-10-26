@@ -41,10 +41,11 @@ struct LobbyView: View {
                             .foregroundStyle(message.hasPrefix("Error") ? DSColor.red : DSColor.ink)
                     }
                 }
-                .frame(maxWidth: 390)
+                .frame(maxWidth: 430)
                 .padding(.horizontal, 20)
-                .padding(.vertical, 20)
+                .padding(.vertical, 16)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
         .onAppear { name = config.playerName }
     }

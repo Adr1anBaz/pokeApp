@@ -48,7 +48,7 @@ struct WaitingRoomView: View {
                             }
                         }
                     }
-                    .frame(maxWidth: 390)
+                    .frame(maxWidth: 430)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                 }
@@ -114,7 +114,7 @@ struct WaitingRoomView: View {
                             .font(DSFont.title(20))
                             .foregroundStyle(DSColor.ink)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 48)
+                            .frame(minHeight: 44)
                             .background(DSColor.yellow.opacity(0.38), in: RoundedRectangle(cornerRadius: 7))
                             .overlay { RoundedRectangle(cornerRadius: 7).stroke(DSColor.ink, lineWidth: 2) }
                     }
@@ -300,7 +300,7 @@ struct BattleVSView: View {
                         .offset(x: hasEntered ? 0 : -proxy.size.width * 0.72)
                 }
                 .padding(.horizontal, 18)
-                .padding(.vertical, 34)
+                .padding(.vertical, 24)
             }
         }
         .ignoresSafeArea()
@@ -329,7 +329,7 @@ struct BattleVSView: View {
     private func trainerCard(player: PlayerStatus?, isLocal: Bool) -> some View {
         VStack(alignment: isLocal ? .leading : .trailing, spacing: 6) {
             TrainerPortrait(player: player, isLocal: isLocal)
-                .frame(width: 166, height: 166)
+                .frame(width: 150, height: 150)
                 .shadow(color: DSColor.ink.opacity(0.45), radius: 0, x: 5, y: 6)
 
             Text(isLocal ? "TÚ" : "RIVAL")

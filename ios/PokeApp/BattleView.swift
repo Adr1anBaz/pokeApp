@@ -128,15 +128,17 @@ struct BattleView: View {
                 BattleFieldBackground()
 
                 if let battle, let ownPokemon, let opponentPokemon {
-                    VStack(spacing: 0) {
-                        battleHeader(battle)
-                        battleField(ownPokemon: ownPokemon, opponentPokemon: opponentPokemon)
-                            .frame(height: min(max(geometry.size.height * 0.42, 272), 350))
-                        battleControls(battle: battle, pokemon: ownPokemon)
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 0) {
+                            battleHeader(battle)
+                            battleField(ownPokemon: ownPokemon, opponentPokemon: opponentPokemon)
+                                .frame(height: min(max(geometry.size.height * 0.38, 240), 320))
+                            battleControls(battle: battle, pokemon: ownPokemon)
+                        }
+                        .frame(maxWidth: 430)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
                     }
-                    .frame(maxWidth: 430)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 12)
                 } else {
                     ProgressView("Preparando el combate...")
                         .font(DSFont.body(16, weight: .bold))
@@ -195,7 +197,7 @@ struct BattleView: View {
                 HStack {
                     Spacer()
                     PokemonSprite(pokemon: opponentPokemon, isOpponent: true)
-                        .frame(width: 128, height: 128)
+                    .frame(width: 112, height: 112)
                         .offset(x: opponentAttackOffset + (opponentImpact ? 8 : 0))
                         .opacity(opponentImpact ? 0.35 : 1)
                         .padding(.trailing, 13)
@@ -204,7 +206,7 @@ struct BattleView: View {
                 Spacer()
                 HStack {
                     PokemonSprite(pokemon: ownPokemon, isOpponent: false)
-                        .frame(width: 154, height: 154)
+                    .frame(width: 138, height: 138)
                         .offset(x: ownAttackOffset + (ownImpact ? -8 : 0))
                         .opacity(ownImpact ? 0.35 : 1)
                         .padding(.leading, 6)
@@ -479,7 +481,7 @@ private struct PokemonHPBox: View {
         .foregroundStyle(DSColor.ink)
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
-        .frame(width: 166)
+        .frame(maxWidth: 166)
         .background(DSColor.paper.opacity(0.94), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(DSColor.ink, lineWidth: 3))
     }

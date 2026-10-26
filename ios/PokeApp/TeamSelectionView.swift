@@ -106,7 +106,8 @@ struct TeamSelectionView: View {
                     }
                 }
                 .padding(.horizontal, 14)
-                .padding(.top, 12)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { teamTray }
@@ -292,7 +293,7 @@ private struct PokemonDraftCard: View {
             HStack(spacing: 12) {
                 ZStack(alignment: .topTrailing) {
                     PokemonArtwork(pokemon: pokemon)
-                        .frame(width: 82, height: 82)
+                        .frame(width: 72, height: 72)
                         .background(typeColor.opacity(0.22), in: RoundedRectangle(cornerRadius: 8))
                     if let selectedOrder {
                         Text("#\(selectedOrder)")
@@ -368,7 +369,7 @@ private struct PokemonArtwork: View {
         image.resizable().scaledToFit().padding(4)
     }
     @ViewBuilder private func placeholder() -> some View {
-        Image(systemName: "pokeball").resizable().scaledToFit().foregroundStyle(DSColor.ink.opacity(0.35)).padding(28)
+        DSPokeBallSymbol(color: DSColor.ink.opacity(0.35)).padding(28)
     }
 }
 
