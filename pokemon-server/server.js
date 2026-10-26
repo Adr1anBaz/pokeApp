@@ -11,6 +11,7 @@ app.use(express.json());
 
 // Almacenamiento en memoria
 const rooms = {};
+const history = [];
 
 // Generar código de sala de 4 letras
 function generateRoomCode() {
@@ -348,6 +349,15 @@ function resolveTurn(room) {
     if (room.score.player1 >= 2 || room.score.player2 >= 2) {
       room.status = 'finished';
       room.winner = room.score.player1 >= 2 ? room.players[0].name : room.players[1].name;
+      history.push({
+        id: uuidv4(),
+        roomCode: room.roomCode,
+        date: new Date().toISOString(),
+        players: room.players.map(p => p.name),
+        score: { ...room.score },
+        winner: room.winner,
+        battlesPlayed: room.currentBattle
+      });
     } else {
       // Preparar siguiente combate
       room.currentBattle++;
@@ -431,6 +441,19 @@ function calculateDamage(move, attacker, defender) {
 // Health check
 app.get('/', (req, res) => {
   res.json({ status: 'ok', message: 'Pokémon Battle Server running' });
+});
+
+app.get('/history', (req, res) => {
+  res.json({
+    total: history.length,
+    matches: history.slice().reverse()
+  });
+});
+
+app.get('/room/:roomCode/history', (req, res) => {
+  const code = req.params.roomCode.toUpperCase();
+  const matches = history.filter(h => h.roomCode === code);
+  res.json({ roomCode: code, total: matches.length, matches });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
