@@ -17,6 +17,7 @@ struct WaitingRoomView: View {
     @ObservedObject var config: AppConfig
     @State private var status: RoomStatus?
     @State private var errorMessage = ""
+    @State private var showVS = false
     @State private var showBattle = false
     @State private var showLeaveConfirmation = false
     @State private var roomNotFound = false
@@ -54,6 +55,11 @@ struct WaitingRoomView: View {
             }
             .navigationTitle("Sala de enlace")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $showVS) {
+                BattleVSView(config: config, players: status?.players ?? []) {
+                    showBattle = true
+                }
+            }
             .navigationDestination(isPresented: $showBattle) { BattleView(config: config) }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -175,7 +181,7 @@ struct WaitingRoomView: View {
             }
             DispatchQueue.main.async {
                 status = decoded; roomNotFound = false
-                if decoded.status == "battle" { showBattle = true }
+                if decoded.status == "battle" { showVS = true }
                 errorMessage = ""
             }
         }.resume()
@@ -223,3 +229,164 @@ private struct TrainerWaitingCard: View {
 }
 
 #Preview { WaitingRoomView(config: AppConfig()) }
+struct BattleVSView: View {
+    @ObservedObject var config: AppConfig
+    let players: [PlayerStatus]
+    let onComplete: () -> Void
+
+    @State private var hasEntered = false
+    @State private var hasCompleted = false
+
+    private var localPlayer: PlayerStatus? {
+        players.first { $0.playerId == config.playerId }
+    }
+
+    private var rivalPlayer: PlayerStatus? {
+        players.first { $0.playerId != config.playerId }
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                VSBackdrop()
+
+                VStack(spacing: 0) {
+                    trainerCard(player: rivalPlayer, isLocal: false)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .offset(x: hasEntered ? 0 : proxy.size.width * 0.72)
+
+                    Spacer(minLength: 0)
+
+                    vsMark
+                        .scaleEffect(hasEntered ? 1 : 0.15)
+                        .opacity(hasEntered ? 1 : 0)
+
+                    Spacer(minLength: 0)
+
+                    trainerCard(player: localPlayer, isLocal: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .offset(x: hasEntered ? 0 : -proxy.size.width * 0.72)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 34)
+            }
+        }
+        .ignoresSafeArea()
+        .navigationBarBackButtonHidden()
+        .onAppear {
+            withAnimation(.spring(response: 0.54, dampingFraction: 0.72).delay(0.12)) {
+                hasEntered = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.25) {
+                guard !hasCompleted else { return }
+                hasCompleted = true
+                onComplete()
+            }
+        }
+    }
+
+    private var vsMark: some View {
+        Text("VS")
+            .font(DSFont.title(48))
+            .foregroundStyle(DSColor.yellow)
+            .shadow(color: DSColor.ink, radius: 0, x: 4, y: 4)
+            .shadow(color: DSColor.paper.opacity(0.65), radius: 0, x: -1, y: -1)
+            .accessibilityLabel("Versus")
+    }
+
+    private func trainerCard(player: PlayerStatus?, isLocal: Bool) -> some View {
+        VStack(alignment: isLocal ? .leading : .trailing, spacing: 6) {
+            TrainerPortrait(player: player, isLocal: isLocal)
+                .frame(width: 166, height: 166)
+                .shadow(color: DSColor.ink.opacity(0.45), radius: 0, x: 5, y: 6)
+
+            Text(isLocal ? "TÚ" : "RIVAL")
+                .font(DSFont.title(10))
+                .foregroundStyle(DSColor.paper.opacity(0.9))
+            Text((player?.name ?? (isLocal ? "ENTRENADOR" : "RIVAL")).uppercased())
+                .font(DSFont.title(15))
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+                .foregroundStyle(DSColor.paper)
+                .shadow(color: DSColor.ink, radius: 0, x: 2, y: 2)
+        }
+    }
+}
+
+private struct TrainerPortrait: View {
+    let player: PlayerStatus?
+    let isLocal: Bool
+
+    private var spriteURL: URL? {
+        // Pokémon Showdown sirve sprites de entrenadores y permite conservar esta vista sin datos nuevos del servidor.
+        URL(string: "https://play.pokemonshowdown.com/sprites/trainers/\(isLocal ? "red" : "leaf").png")
+    }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill((isLocal ? DSColor.blue : DSColor.red).opacity(0.35))
+                .overlay(Circle().stroke(DSColor.paper, lineWidth: 4))
+            AsyncImage(url: spriteURL) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFit().padding(8)
+                } else if phase.error != nil {
+                    fallback
+                } else {
+                    ProgressView().tint(DSColor.paper)
+                }
+            }
+        }
+        .accessibilityLabel("Entrenador \(player?.name ?? (isLocal ? "local" : "rival"))")
+    }
+
+    private var fallback: some View {
+        Image(systemName: isLocal ? "person.crop.circle.fill" : "figure.walk.circle.fill")
+            .resizable()
+            .scaledToFit()
+            .foregroundStyle(DSColor.paper)
+            .padding(26)
+    }
+}
+
+private struct VSBackdrop: View {
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                DSColor.blue
+                DiagonalPanel()
+                    .fill(DSColor.red)
+                DiagonalPanel()
+                    .stroke(DSColor.paper.opacity(0.9), lineWidth: 5)
+                ForEach(0..<6, id: \.self) { index in
+                    Capsule()
+                        .fill(DSColor.paper.opacity(0.11))
+                        .frame(width: proxy.size.width * 0.8, height: 9)
+                        .rotationEffect(.degrees(-38))
+                        .offset(x: CGFloat(index - 3) * 95, y: CGFloat(index - 3) * 72)
+                }
+            }
+        }
+    }
+}
+
+private struct DiagonalPanel: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.width * 0.38, y: 0))
+        path.addLine(to: CGPoint(x: rect.width, y: 0))
+        path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+        path.addLine(to: CGPoint(x: rect.width * 0.62, y: rect.height))
+        path.closeSubpath()
+        return path
+    }
+}
+
+#Preview {
+    NavigationStack {
+        BattleVSView(config: AppConfig(), players: [
+            PlayerStatus(playerId: "1", name: "Adrián", ready: true, hasTeam: true),
+            PlayerStatus(playerId: "2", name: "Misty", ready: true, hasTeam: true)
+        ], onComplete: {})
+    }
+}
