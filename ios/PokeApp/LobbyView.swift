@@ -1,160 +1,117 @@
 import SwiftUI
 
-private struct RoomResponse: Decodable {
-    let roomCode: String
-    let playerId: String
-    let role: String?
-}
-
-private struct ServerError: Decodable {
-    let error: String?
-}
-
 struct LobbyView: View {
-    @ObservedObject var config: AppConfig
-    @State private var name = ""
-    @State private var joinCode = ""
-    @State private var message = ""
-    @State private var isLoading = false
-
-    private var cleanName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var cleanJoinCode: String { joinCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() }
+    @ObservedObject var vm: GameViewModel
+    @ObservedObject private var sound = Sound.shared
 
     var body: some View {
-        ZStack {
-            lobbyBackground
-            ScrollView {
-                VStack(spacing: 16) {
-                    lobbyHeader
-                    trainerNameField
-                    createPanel
-                    joinPanel
-
-                    if isLoading {
-                        ProgressView("Buscando conexión...")
-                            .font(DSFont.body(13, weight: .bold))
-                            .tint(DSColor.blue)
-                    }
-
-                    if !message.isEmpty {
-                        DSDialogueBox(text: message, speaker: message.hasPrefix("Error") ? "AVISO" : "SISTEMA")
-                            .foregroundStyle(message.hasPrefix("Error") ? DSColor.red : DSColor.ink)
-                    }
+        MenuScreen {
+            GameLogo().padding(.top, 12)
+            DsPanel(accent: Ds.red) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("ENTRENADOR")
+                        .font(PixelFont.headlineSmall)
+                        .foregroundColor(Ds.red)
+                    DsTextField(label: "Tu nombre", text: Binding(
+                        get: { vm.playerName },
+                        set: { vm.updateName(String($0.prefix(12))) }
+                    ))
                 }
-                .frame(maxWidth: 430)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .scrollDismissesKeyboard(.interactively)
-        }
-        .onAppear { name = config.playerName }
-    }
-
-    private var lobbyBackground: some View {
-        LinearGradient(colors: [DSColor.skyTop.opacity(0.62), DSColor.paper, DSColor.grass.opacity(0.22)], startPoint: .top, endPoint: .bottom)
-            .ignoresSafeArea()
-    }
-
-    private var lobbyHeader: some View {
-        VStack(spacing: 5) {
-            Text("SALA DE ENLACE")
-                .font(DSFont.title(18))
-                .foregroundStyle(DSColor.ink)
-            Text("CREA O ENCUENTRA UNA PARTIDA")
-                .font(DSFont.body(13, weight: .bold))
-                .foregroundStyle(DSColor.red)
-        }
-        .padding(.top, 4)
-    }
-
-    private var trainerNameField: some View {
-        DSPanel {
-            DSInput(label: "NOMBRE DE ENTRENADOR", placeholder: "Tu nombre", text: $name)
-        }
-    }
-
-    private var createPanel: some View {
-        DSPanel {
-            VStack(alignment: .leading, spacing: 12) {
-                DSSectionTitle(title: "NUEVA AVENTURA", subtitle: "Crea una sala y espera a tu rival.", color: DSColor.blue)
-                DSButton { createRoom() } label: {
-                    Label("CREAR SALA", systemImage: "plus.circle.fill")
-                }
-                .disabled(cleanName.isEmpty || isLoading)
-                .opacity(cleanName.isEmpty || isLoading ? 0.55 : 1)
+            ErrorBanner(message: vm.error)
+            PixelButton(text: "CREAR SALA", enabled: !vm.loading, sfx: .confirm) { vm.createRoom() }
+            PixelButton(text: "UNIRSE A SALA", color: Ds.blue, dark: Ds.blueDark, enabled: !vm.loading) { vm.openJoin() }
+            if let code = vm.roomCode {
+                PixelButton(text: "VOLVER A SALA \(code)", color: Ds.green, dark: Ds.greenDark) { vm.resumeRoom() }
             }
-        }
-    }
-
-    private var joinPanel: some View {
-        DSPanel {
-            VStack(alignment: .leading, spacing: 12) {
-                DSSectionTitle(title: "UNIRSE A UN AMIGO", subtitle: "Introduce el código que te compartieron.", color: DSColor.red)
-                DSInput(label: "CÓDIGO DE SALA", placeholder: "ABCD", text: $joinCode, alignment: .center, fill: DSColor.yellow.opacity(0.22))
-                    .textInputAutocapitalization(.characters)
-#if os(iOS)
-                    .textInputAutocapitalization(.characters)
-#endif
-                DSButton(tone: .secondary) { joinRoom() } label: {
-                    HStack(spacing: 9) { Text("▶"); Text("UNIRSE") }
-                }
-                .disabled(cleanName.isEmpty || cleanJoinCode.isEmpty || isLoading)
-                .opacity(cleanName.isEmpty || cleanJoinCode.isEmpty || isLoading ? 0.55 : 1)
+            HStack(spacing: 12) {
+                Text("Servidor: \(vm.serverURL ?? "")")
+                    .font(PixelFont.bodySmall)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                SmallChip(text: "CAMBIAR IP") { vm.changeServer() }
+                SmallChip(text: sound.muted ? "🔇" : "🔊") { sound.toggleMute() }
             }
-        }
-    }
-
-    private func createRoom() {
-        config.playerName = cleanName
-        sendRoomRequest(path: "/room", body: ["playerName": cleanName])
-    }
-
-    private func joinRoom() {
-        config.playerName = cleanName
-        sendRoomRequest(path: "/room/join", body: ["roomCode": cleanJoinCode, "playerName": cleanName])
-    }
-
-    private func sendRoomRequest(path: String, body: [String: String]) {
-        guard let url = URL(string: "\(config.serverURL)\(path)") else { message = "URL del servidor inválida"; return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONEncoder().encode(body)
-        isLoading = true
-        message = "Conectando..."
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            let result: Result<RoomResponse, Error>
-            if let error { result = .failure(error) }
-            else if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) { result = .failure(Self.responseError(from: data)) }
-            else if let data, let roomResponse = try? JSONDecoder().decode(RoomResponse.self, from: data) { result = .success(roomResponse) }
-            else { result = .failure(ClientError.invalidResponse) }
-            DispatchQueue.main.async {
-                isLoading = false
-                switch result {
-                case .success(let roomResponse):
-                    config.roomCode = roomResponse.roomCode; config.playerId = roomResponse.playerId; config.playerSlot = roomResponse.role == "guest" ? 2 : 1
-                    message = path == "/room" ? "Sala creada: \(roomResponse.roomCode)" : "Unido a sala: \(roomResponse.roomCode)"
-                case .failure(let error): message = "Error: \(error.localizedDescription)"
-                }
-            }
-        }.resume()
-    }
-
-    private static func responseError(from data: Data?) -> Error {
-        if let data, let serverError = try? JSONDecoder().decode(ServerError.self, from: data), let message = serverError.error { return ClientError.server(message) }
-        return ClientError.requestFailed
-    }
-}
-
-private enum ClientError: LocalizedError {
-    case invalidResponse, requestFailed, server(String)
-    var errorDescription: String? {
-        switch self {
-        case .invalidResponse: return "Respuesta inválida del servidor"
-        case .requestFailed: return "La solicitud no pudo completarse"
-        case .server(let message): return message
+            .padding(.top, 4)
         }
     }
 }
 
-#Preview { LobbyView(config: AppConfig()) }
+struct SmallChip: View {
+    let text: String
+    let action: () -> Void
+
+    var body: some View {
+        PixelButton(text: text, color: Ds.ink.opacity(0.75), dark: Ds.ink, font: PixelFont.labelMedium, fullWidth: false, action: action)
+            .fixedSize()
+    }
+}
+
+struct JoinView: View {
+    @ObservedObject var vm: GameViewModel
+    @State private var code = ""
+
+    var body: some View {
+        MenuScreen(top: Ds.blueDark, bottom: Ds.blue) {
+            OutlinedText(text: "UNIRSE", font: PixelFont.display, width: 3)
+                .padding(.top, 24)
+            DsPanel {
+                VStack(spacing: 12) {
+                    Text("Escribe el código de 4 letras")
+                        .font(PixelFont.titleMedium)
+                        .foregroundColor(Ds.ink)
+                    CodeTiles(code: code.padding(toLength: 4, withPad: " ", startingAt: 0), animate: false)
+                    DsTextField(label: "Código", text: $code, placeholder: "ABCD", capitalization: .characters)
+                        .onChange(of: code) { value in
+                            let clean = String(value.uppercased().filter { $0.isLetter }.prefix(4))
+                            if clean != value { code = clean }
+                        }
+                    Text("Jugando como: \(vm.playerName)")
+                        .font(PixelFont.bodyMedium)
+                        .foregroundColor(Ds.inkSoft)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            ErrorBanner(message: vm.error)
+            PixelButton(text: vm.loading ? "UNIÉNDOSE…" : "¡ENTRAR!", enabled: !vm.loading && code.count == 4, sfx: .confirm) {
+                vm.joinRoom(code)
+            }
+            PixelButton(text: "CANCELAR", color: Ds.frame, dark: Ds.ink) { vm.backToLobby() }
+        }
+    }
+}
+
+/// Room code shown as 4 letter tiles that pop in one by one.
+struct CodeTiles: View {
+    let code: String
+    var animate: Bool = true
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(Array(code.enumerated()), id: \.offset) { index, letter in
+                CodeTile(letter: String(letter), delay: animate ? 0.15 * Double(index) : nil)
+            }
+        }
+    }
+}
+
+private struct CodeTile: View {
+    let letter: String
+    let delay: Double?
+    @State private var shown = false
+
+    var body: some View {
+        Text(letter)
+            .font(PixelFont.display)
+            .foregroundColor(Ds.yellow)
+            .frame(width: 58, height: 70)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Ds.ink))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Ds.yellow, lineWidth: 3))
+            .scaleEffect(shown || delay == nil ? 1 : 0.01)
+            .onAppear {
+                guard let delay else { return }
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.5).delay(delay)) { shown = true }
+            }
+    }
+}

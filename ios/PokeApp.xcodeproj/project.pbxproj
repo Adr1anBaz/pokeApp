@@ -15,9 +15,16 @@
 		A10000010000000000000006 /* TeamSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000006 /* TeamSelectionView.swift */; };
 		A10000010000000000000007 /* BattleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000007 /* BattleView.swift */; };
 		A10000010000000000000008 /* ResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000008 /* ResultView.swift */; };
-		A10000010000000000000009 /* RoomActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000009 /* RoomActions.swift */; };
+		A10000010000000000000009 /* API.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000009 /* API.swift */; };
 		A1000001000000000000000A /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000A /* DesignSystem.swift */; };
 		A1000001000000000000000B /* RemoteFontLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000B /* RemoteFontLoader.swift */; };
+		A1000001000000000000000C /* GameViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000C /* GameViewModel.swift */; };
+		A1000001000000000000000D /* MoveNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000D /* MoveNames.swift */; };
+		A1000001000000000000000E /* Sound.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000E /* Sound.swift */; };
+		A1000001000000000000000F /* PixelSprite.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001000000000000000F /* PixelSprite.swift */; };
+		A10000010000000000000010 /* BattleDirector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000010 /* BattleDirector.swift */; };
+		A10000010000000000000011 /* Effects.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000011 /* Effects.swift */; };
+		A10000010000000000000012 /* MoveCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000012 /* MoveCards.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,9 +37,16 @@
 		A20000010000000000000006 /* TeamSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamSelectionView.swift; sourceTree = "<group>"; };
 		A20000010000000000000007 /* BattleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleView.swift; sourceTree = "<group>"; };
 		A20000010000000000000008 /* ResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultView.swift; sourceTree = "<group>"; };
-		A20000010000000000000009 /* RoomActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomActions.swift; sourceTree = "<group>"; };
+		A20000010000000000000009 /* API.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = API.swift; sourceTree = "<group>"; };
 		A2000001000000000000000A /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		A2000001000000000000000B /* RemoteFontLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteFontLoader.swift; sourceTree = "<group>"; };
+		A2000001000000000000000C /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
+		A2000001000000000000000D /* MoveNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveNames.swift; sourceTree = "<group>"; };
+		A2000001000000000000000E /* Sound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sound.swift; sourceTree = "<group>"; };
+		A2000001000000000000000F /* PixelSprite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelSprite.swift; sourceTree = "<group>"; };
+		A20000010000000000000010 /* BattleDirector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleDirector.swift; sourceTree = "<group>"; };
+		A20000010000000000000011 /* Effects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Effects.swift; sourceTree = "<group>"; };
+		A20000010000000000000012 /* MoveCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveCards.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,9 +79,16 @@
 				A20000010000000000000006 /* TeamSelectionView.swift */,
 				A20000010000000000000007 /* BattleView.swift */,
 				A20000010000000000000008 /* ResultView.swift */,
-				A20000010000000000000009 /* RoomActions.swift */,
+				A20000010000000000000009 /* API.swift */,
 				A2000001000000000000000A /* DesignSystem.swift */,
 				A2000001000000000000000B /* RemoteFontLoader.swift */,
+				A2000001000000000000000C /* GameViewModel.swift */,
+				A2000001000000000000000D /* MoveNames.swift */,
+				A2000001000000000000000E /* Sound.swift */,
+				A2000001000000000000000F /* PixelSprite.swift */,
+				A20000010000000000000010 /* BattleDirector.swift */,
+				A20000010000000000000011 /* Effects.swift */,
+				A20000010000000000000012 /* MoveCards.swift */,
 			);
 			path = PokeApp;
 			sourceTree = "<group>";
@@ -152,9 +173,16 @@
 				A10000010000000000000006 /* TeamSelectionView.swift in Sources */,
 				A10000010000000000000007 /* BattleView.swift in Sources */,
 				A10000010000000000000008 /* ResultView.swift in Sources */,
-				A10000010000000000000009 /* RoomActions.swift in Sources */,
+				A10000010000000000000009 /* API.swift in Sources */,
 				A1000001000000000000000A /* DesignSystem.swift in Sources */,
 				A1000001000000000000000B /* RemoteFontLoader.swift in Sources */,
+				A1000001000000000000000C /* GameViewModel.swift in Sources */,
+				A1000001000000000000000D /* MoveNames.swift in Sources */,
+				A1000001000000000000000E /* Sound.swift in Sources */,
+				A1000001000000000000000F /* PixelSprite.swift in Sources */,
+				A10000010000000000000010 /* BattleDirector.swift in Sources */,
+				A10000010000000000000011 /* Effects.swift in Sources */,
+				A10000010000000000000012 /* MoveCards.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

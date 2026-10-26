@@ -1,55 +1,43 @@
 import Foundation
-import Combine
 
-final class AppConfig: ObservableObject {
-    @Published var serverURL: String {
-        didSet {
-            UserDefaults.standard.set(serverURL, forKey: "serverURL")
-        }
+/// Session data kept between launches (same as Android's Prefs):
+/// serverURL, playerName, playerId, roomCode and role ("host" plays as player1, "guest" as player2).
+final class AppConfig {
+    private let defaults = UserDefaults.standard
+
+    var serverURL: String? {
+        get { nonEmpty("serverURL") }
+        set { defaults.set(newValue, forKey: "serverURL") }
     }
 
-    @Published var playerId: String {
-        didSet {
-            UserDefaults.standard.set(playerId, forKey: "playerId")
-        }
+    var playerName: String {
+        get { defaults.string(forKey: "playerName") ?? "" }
+        set { defaults.set(newValue, forKey: "playerName") }
     }
 
-    @Published var roomCode: String {
-        didSet {
-            UserDefaults.standard.set(roomCode, forKey: "roomCode")
-        }
+    var playerId: String? {
+        get { nonEmpty("playerId") }
+        set { defaults.set(newValue, forKey: "playerId") }
     }
 
-    @Published var playerName: String {
-        didSet {
-            UserDefaults.standard.set(playerName, forKey: "playerName")
-        }
+    var roomCode: String? {
+        get { nonEmpty("roomCode") }
+        set { defaults.set(newValue, forKey: "roomCode") }
     }
 
-    @Published var playerSlot: Int {
-        didSet {
-            UserDefaults.standard.set(playerSlot, forKey: "playerSlot")
-        }
-    }
-
-    init() {
-        serverURL = UserDefaults.standard.string(forKey: "serverURL") ?? ""
-        playerId = UserDefaults.standard.string(forKey: "playerId") ?? ""
-        roomCode = UserDefaults.standard.string(forKey: "roomCode") ?? ""
-        playerName = UserDefaults.standard.string(forKey: "playerName") ?? "Jugador"
-        playerSlot = UserDefaults.standard.integer(forKey: "playerSlot")
-        if playerSlot == 0 {
-            playerSlot = 1
-        }
-    }
-
-    var hasServer: Bool {
-        !serverURL.isEmpty
+    var role: String? {
+        get { nonEmpty("role") }
+        set { defaults.set(newValue, forKey: "role") }
     }
 
     func clearRoom() {
-        roomCode = ""
-        playerId = ""
-        playerSlot = 1
+        playerId = nil
+        roomCode = nil
+        role = nil
+    }
+
+    private func nonEmpty(_ key: String) -> String? {
+        guard let value = defaults.string(forKey: key), !value.isEmpty else { return nil }
+        return value
     }
 }
