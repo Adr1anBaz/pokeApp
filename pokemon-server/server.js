@@ -316,24 +316,34 @@ function resolveTurn(room) {
   const move1 = p1.moves.find(m => m.id === b.pendingMoves.player1) || p1.moves[0];
   const move2 = p2.moves.find(m => m.id === b.pendingMoves.player2) || p2.moves[0];
 
-  // Cálculo simple de daño
-  const dmg1to2 = calculateDamage(move1, p1, p2);
-  const dmg2to1 = calculateDamage(move2, p2, p1);
+  const attacks = [
+    { attackerKey: 'player1', attacker: p1, defender: p2, move: move1 },
+    { attackerKey: 'player2', attacker: p2, defender: p1, move: move2 }
+  ].sort((first, second) => {
+    const speedDifference = second.attacker.stats.speed - first.attacker.stats.speed;
+    // player1 conserva la prioridad cuando las velocidades son iguales.
+    return speedDifference || (first.attackerKey === 'player1' ? -1 : 1);
+  });
 
-  p2.hp = Math.max(0, p2.hp - dmg1to2);
-  p1.hp = Math.max(0, p1.hp - dmg2to1);
+  const damages = { player1: 0, player2: 0 };
+  attacks.forEach(({ attackerKey, attacker, defender, move }) => {
+    const damage = calculateDamage(move, attacker, defender);
+    damages[attackerKey] = damage;
+    defender.hp = Math.max(0, defender.hp - damage);
+  });
+
+  const dmg1to2 = damages.player1;
+  const dmg2to1 = damages.player2;
 
   b.lastTurn = {
     player1Move: move1.name,
     player2Move: move2.name,
     damageToPlayer1: dmg2to1,
     damageToPlayer2: dmg1to2,
-    logs: [
-      `${p1.name} usó ${move1.name}`,
-      `${p2.name} usó ${move2.name}`,
-      `${p2.name} recibió ${dmg1to2} de daño`,
-      `${p1.name} recibió ${dmg2to1} de daño`
-    ]
+    logs: attacks.flatMap(({ attacker, defender, move, attackerKey }) => [
+      `${attacker.name} usó ${move.name}`,
+      `${defender.name} recibió ${damages[attackerKey]} de daño`
+    ])
   };
 
   b.pendingMoves = {};
@@ -341,7 +351,10 @@ function resolveTurn(room) {
 
   // Verificar si terminó el combate
   if (p1.hp <= 0 || p2.hp <= 0) {
-    const winnerIndex = p1.hp > 0 ? 0 : 1;
+    const firstAttacker = attacks[0].attackerKey;
+    const winnerIndex = p1.hp === 0 && p2.hp === 0
+      ? (firstAttacker === 'player1' ? 0 : 1)
+      : (p1.hp > 0 ? 0 : 1);
     room.score[winnerIndex === 0 ? 'player1' : 'player2']++;
     b.status = 'finished';
 
@@ -409,6 +422,9 @@ function startNextBattle(room) {
 function calculateDamage(move, attacker, defender) {
   if (!move.power) return 0;
 
+  // Un fallo nunca puede convertirse en el daño mínimo al final del cálculo.
+  if (Math.random() * 100 > move.accuracy) return 0;
+
   const attackStat = move.damageClass === 'special' 
     ? attacker.stats['special-attack'] 
     : attacker.stats.attack;
@@ -431,9 +447,6 @@ function calculateDamage(move, attacker, defender) {
 
   const multiplier = typeChart[move.type]?.[defender.types[0]] || 1;
   damage = Math.floor(damage * multiplier);
-
-  // Accuracy
-  if (Math.random() * 100 > move.accuracy) damage = 0;
 
   return Math.max(1, damage);
 }
