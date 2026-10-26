@@ -18,14 +18,18 @@ struct BattleView: View {
     var body: some View {
         ZStack {
             Ds.ink
-            VStack(spacing: 0) {
-                BattleTopBar(vm: vm, director: director)
-                BattleScene(director: director)
-                MessageBox(vm: vm, director: director)
-                ErrorBanner(message: vm.error)
-                    .padding(.horizontal, 10)
-                CardHand(vm: vm, director: director) { confirmForfeit = true }
-                    .frame(maxHeight: .infinity)
+            GeometryReader { geo in
+                VStack(spacing: 0) {
+                    BattleTopBar(vm: vm, director: director)
+                    // Full width like Android, but on short iPhones (SE) leave room for the cards.
+                    BattleScene(director: director)
+                        .frame(maxHeight: geo.size.height * 0.45)
+                    MessageBox(vm: vm, director: director)
+                    ErrorBanner(message: vm.error)
+                        .padding(.horizontal, 10)
+                    CardHand(vm: vm, director: director) { confirmForfeit = true }
+                        .frame(maxHeight: .infinity)
+                }
             }
             if director.showVs { VsOverlay(vm: vm, director: director) }
             Color.white
