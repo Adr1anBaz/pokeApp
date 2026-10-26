@@ -46,5 +46,6 @@ dependencies {
     implementation(libs.retrofit.converter.gson)
     implementation(libs.okhttp)
     implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

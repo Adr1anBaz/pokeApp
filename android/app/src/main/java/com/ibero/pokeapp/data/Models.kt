@@ -62,6 +62,9 @@ data class BattlePokemon(
     val hp: Int,
     val maxHp: Int,
     val moves: List<Move>?,
+    // Not in the contract, but the server sends them; used for turn order and effectiveness.
+    val stats: Map<String, Int>?,
+    val types: List<String>?,
 )
 
 data class Move(
@@ -81,6 +84,15 @@ data class LastTurn(
     val damageToPlayer1: Int?,
     val damageToPlayer2: Int?,
     val logs: List<String>?,
+    // Optional fields proposed for the server (see android/backend-requests.md).
+    // When present the battle animations use them; otherwise the app falls back to its own guesses.
+    val turnNumber: Int?,
+    val battleNumber: Int?,
+    val firstAttacker: String?,
+    val player1Missed: Boolean?,
+    val player2Missed: Boolean?,
+    val player1Effectiveness: Double?,
+    val player2Effectiveness: Double?,
 )
 
 data class MoveRequest(val playerId: String, val moveId: Int)
