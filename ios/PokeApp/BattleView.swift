@@ -131,11 +131,12 @@ struct BattleView: View {
                     VStack(spacing: 0) {
                         battleHeader(battle)
                         battleField(ownPokemon: ownPokemon, opponentPokemon: opponentPokemon)
-                            .frame(height: max(geometry.size.height * 0.48, 300))
+                            .frame(height: min(max(geometry.size.height * 0.42, 272), 350))
                         battleControls(battle: battle, pokemon: ownPokemon)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 10)
+                    .frame(maxWidth: 430)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
                 } else {
                     ProgressView("Preparando el combate...")
                         .font(DSFont.body(16, weight: .bold))
@@ -145,23 +146,34 @@ struct BattleView: View {
                 }
             }
         }
-        .ignoresSafeArea(edges: .bottom)
     }
 
     private func battleHeader(_ battle: BattleState) -> some View {
-        HStack {
-            Text("COMBATE \(battle.battleNumber)")
-                .font(DSFont.title(11))
-            Spacer()
-            Text("\(battle.score.player1)  -  \(battle.score.player2)")
-                .font(DSFont.body(15, weight: .bold))
-                .padding(.horizontal, 10)
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("COMBATE \(battle.battleNumber) DE 3")
+                    .font(DSFont.title(10))
+                Text("TÚ \(ownScore(battle))  ·  \(opponentScore(battle)) RIVAL")
+                    .font(DSFont.body(12, weight: .bold))
+            }
+            Spacer(minLength: 8)
+            Text(battle.status == "waiting_moves" ? "TU TURNO" : "EN CURSO")
+                .font(DSFont.body(10, weight: .bold))
+                .padding(.horizontal, 9)
                 .padding(.vertical, 6)
-                .background(DSColor.paper.opacity(0.82), in: Capsule())
+                .background(DSColor.paper.opacity(0.88), in: Capsule())
         }
         .foregroundStyle(DSColor.ink)
         .padding(.top, 8)
         .padding(.bottom, 4)
+    }
+
+    private func ownScore(_ battle: BattleState) -> Int {
+        config.playerSlot == 2 ? battle.score.player2 : battle.score.player1
+    }
+
+    private func opponentScore(_ battle: BattleState) -> Int {
+        config.playerSlot == 2 ? battle.score.player1 : battle.score.player2
     }
 
     private func battleField(ownPokemon: BattlePokemon, opponentPokemon: BattlePokemon) -> some View {
@@ -177,7 +189,7 @@ struct BattleView: View {
                     PokemonHPBox(label: "TU POKÉMON", pokemon: ownPokemon, displayedHP: displayedOwnHP)
                 }
             }
-            .padding(.vertical, 20)
+            .padding(.vertical, 12)
 
             VStack {
                 HStack {
@@ -211,20 +223,28 @@ struct BattleView: View {
     private func battleControls(battle: BattleState, pokemon: BattlePokemon) -> some View {
         VStack(spacing: 10) {
             DSDialogueBox(text: animatedDialogue ?? dialogue(for: battle), speaker: battle.status == "waiting_moves" ? "ENTRENADOR" : nil)
-                .frame(minHeight: 78)
+                .frame(minHeight: 72)
 
             if battle.status == "waiting_moves" {
                 MoveGrid(moves: pokemon.moves, isDisabled: isSendingMove, action: sendMove)
             } else {
                 HStack(spacing: 10) {
                     Image(systemName: battle.status == "resolving" ? "arrow.triangle.2.circlepath" : "flag.checkered")
-                    Text(battle.status == "resolving" ? "Esperando el turno rival..." : "El combate ha terminado")
+                    Text(battle.status == "resolving" ? "Movimiento enviado · esperando al rival" : "El combate ha terminado")
                 }
                 .font(DSFont.body(15, weight: .bold))
                 .foregroundStyle(DSColor.ink)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 19)
                 .background(DSColor.paper.opacity(0.9), in: RoundedRectangle(cornerRadius: 12))
+            }
+
+            if let logs = battle.lastTurn?.logs, let latest = logs.last, battle.status != "waiting_moves" {
+                Text("ÚLTIMO TURNO · \(latest)")
+                    .font(DSFont.body(11, weight: .bold))
+                    .foregroundStyle(DSColor.paper)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             if !message.isEmpty {
@@ -459,7 +479,7 @@ private struct PokemonHPBox: View {
         .foregroundStyle(DSColor.ink)
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
-        .frame(width: 174)
+        .frame(width: 166)
         .background(DSColor.paper.opacity(0.94), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(DSColor.ink, lineWidth: 3))
     }
@@ -551,16 +571,22 @@ private struct MoveGrid: View {
                 Button {
                     action(move.id)
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(move.name.uppercased())
-                            .font(DSFont.body(14, weight: .bold))
-                            .lineLimit(1)
-                        HStack {
-                            Text(move.type.uppercased())
-                            Spacer()
-                            Text("PWR \(move.power)")
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(DSColor.type(move.type))
+                            .frame(width: 11, height: 11)
+                            .overlay(Circle().stroke(DSColor.ink.opacity(0.45), lineWidth: 1))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(move.name.uppercased())
+                                .font(DSFont.body(14, weight: .bold))
+                                .lineLimit(1)
+                            HStack {
+                                Text(move.type.uppercased())
+                                Spacer()
+                                Text("PWR \(move.power) · \(move.accuracy)%")
+                            }
+                            .font(DSFont.body(9, weight: .bold))
                         }
-                        .font(DSFont.body(9, weight: .bold))
                     }
                     .foregroundStyle(DSColor.ink)
                     .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)

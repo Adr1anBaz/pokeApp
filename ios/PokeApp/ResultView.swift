@@ -47,14 +47,14 @@ struct ResultView: View {
                     scorePanel
                     playerSummary
 
+                    if isShowingHistory { historyPanel }
+
                     DSButton(tone: .secondary) {
                         isShowingHistory.toggle()
                         if isShowingHistory && history.isEmpty { fetchHistory() }
                     } label: {
-                        Label(isShowingHistory ? "OCULTAR HISTORIAL" : "VER HISTORIAL", systemImage: "clock.arrow.circlepath")
+                        Label(isShowingHistory ? "OCULTAR HISTORIAL" : "VER ÚLTIMAS PARTIDAS", systemImage: "clock.arrow.circlepath")
                     }
-
-                    if isShowingHistory { historyPanel }
 
                     DSButton {
                         config.roomCode = ""
@@ -64,7 +64,7 @@ struct ResultView: View {
                         Label("VOLVER AL LOBBY", systemImage: "house.fill")
                     }
                 }
-                .frame(maxWidth: 390)
+                .frame(maxWidth: 430)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 18)
             }
@@ -86,8 +86,12 @@ struct ResultView: View {
 
     private var resultHeader: some View {
         HStack {
-            Text("RESULTADO FINAL")
-                .font(DSFont.title(13))
+            VStack(alignment: .leading, spacing: 3) {
+                Text("RESULTADO FINAL")
+                    .font(DSFont.title(12))
+                Text("COMBATE COMPLETADO")
+                    .font(DSFont.body(10, weight: .bold))
+            }
             Spacer()
             Image(systemName: didWin ? "star.fill" : "flag.checkered")
                 .font(.title3)
@@ -117,18 +121,21 @@ struct ResultView: View {
     }
 
     private var scorePanel: some View {
-        HStack(spacing: 16) {
-            scoreSide(title: "JUGADOR 1", score: score.player1, tint: DSColor.red)
+        HStack(spacing: 12) {
+            scoreSide(title: "TÚ", score: ownScore, tint: DSColor.red)
             Text("VS")
                 .font(DSFont.title(14))
                 .foregroundStyle(DSColor.ink)
-            scoreSide(title: "JUGADOR 2", score: score.player2, tint: DSColor.blue)
+            scoreSide(title: "RIVAL", score: opponentScore, tint: DSColor.blue)
         }
         .padding(.vertical, 13)
         .frame(maxWidth: .infinity)
         .background(DSColor.paper.opacity(0.92), in: RoundedRectangle(cornerRadius: 12))
         .overlay { RoundedRectangle(cornerRadius: 12).stroke(DSColor.ink, lineWidth: 4) }
     }
+
+    private var ownScore: Int { config.playerSlot == 2 ? score.player2 : score.player1 }
+    private var opponentScore: Int { config.playerSlot == 2 ? score.player1 : score.player2 }
 
     private func scoreSide(title: String, score: Int, tint: Color) -> some View {
         VStack(spacing: 5) {
@@ -140,7 +147,7 @@ struct ResultView: View {
 
     private var playerSummary: some View {
         DSDialogueBox(
-            text: "\(config.playerName.uppercased()) VS \(opponentSummaryName)\nGANADOR: \(winner.uppercased())",
+            text: "\(config.playerName.uppercased())  ·  \(ownScore) PUNTOS\nGANADOR: \(winner.uppercased())",
             speaker: "RESUMEN DE ENTRENADORES"
         )
     }
@@ -151,6 +158,9 @@ struct ResultView: View {
                 Text("ÚLTIMAS 10 PARTIDAS")
                     .font(DSFont.title(11))
                     .foregroundStyle(DSColor.blue)
+                Text("HISTORIAL DE LA SALA")
+                    .font(DSFont.body(10, weight: .bold))
+                    .foregroundStyle(DSColor.mutedInk)
                 if history.isEmpty && message.isEmpty {
                     ProgressView().frame(maxWidth: .infinity)
                 } else if history.isEmpty {
@@ -210,6 +220,10 @@ private struct HistoryRow: View {
             Text("GANÓ \(match.winner.uppercased())")
                 .font(DSFont.body(11))
                 .foregroundStyle(DSColor.ink.opacity(0.7))
+            Text(match.date)
+                .font(DSFont.body(9))
+                .foregroundStyle(DSColor.mutedInk)
+                .lineLimit(1)
         }
     }
 }
